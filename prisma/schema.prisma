@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Run {
+  id        String      @id @default(cuid())
+  keyword   String
+  domain    String
+  country   String      // ISO-2
+  language  String      // BCP-47
+  createdAt DateTime    @default(now())
+  ipHash    String?
+  cacheHit  Boolean     @default(false)
+  results   RunResult[]
+  email     Email?
+  report    Report?
+}
+
+model RunResult {
+  id                 String   @id @default(cuid())
+  runId              String
+  provider           String
+  model              String?
+  status             String   // ok | timeout | error | parse_error
+  mentioned          Boolean?
+  evidence           String?
+  firstIndex         Int?     // -1 when not found
+  languageDetected   String?
+  countryInterpreted String?
+  latencyMs          Int?
+  costUsd            Decimal? @db.Decimal(10, 6)
+  rawResponse        Json?
+  run                Run      @relation(fields: [runId], references: [id])
+}
+
+model Email {
+  id       String   @id @default(cuid())
+  runId    String   @unique
+  toEmail  String
+  sentAt   DateTime?
+  status   String   // queued | sent | failed
+  provider String?
+  error    String?
+  run      Run      @relation(fields: [runId], references: [id])
+}
+
+model Report {
+  id        String   @id @default(cuid())
+  runId     String   @unique
+  pdfUrl    String
+  sha256    String?
+  createdAt DateTime @default(now())
+  run       Run      @relation(fields: [runId], references: [id])
+}

@@ -1,47 +1,222 @@
-# SEO-AOE — AI Visibility Checker (MVP)
+# SEO-AOE — AI Visibility Checker
 
-**SEO-AOE** checks whether leading LLMs (ChatGPT/OpenAI, Claude/Anthropic, Gemini/Google, Perplexity) would **mention your website** for a given **keyword**, **country**, and **language**.  
-V0.1 returns a **binary result** (mentioned / not mentioned) with a short evidence snippet and position index, and emails a simple PDF report.
+**SEO-AOE** checks whether leading LLMs would **mention your website** for a given **keyword**, **country**, and **language**.
+The application queries 6 major AI providers in parallel and returns binary results (mentioned / not mentioned) with evidence snippets, position index, latency, and cost tracking.
 
-## Features (V0.1)
-- ✅ Inputs: **Keyword**, **Domain**, **Country (ISO-2)**, **Language (BCP-47)**
-- ✅ Parallel checks across **OpenAI, Claude, Gemini, Perplexity**
+## Features
+- ✅ Inputs: **Keyword**, **Domain**, **Country (ISO-2)**, **Language (ISO-639-1)**
+- ✅ Parallel checks across **6 AI Providers**:
+  - OpenAI (gpt-4o-mini)
+  - Grok (grok-3)
+  - DeepSeek (deepseek-chat)
+  - Perplexity (sonar)
+  - Google Gemini (gemini-2.0-flash-exp)
+  - Anthropic Claude (claude-3-7-sonnet-20250219)
 - ✅ **Regex** validation of mentions (anti-hallucination)
-- ✅ Minimal UI results table + **PDF via email**
-- ✅ **Admin dashboard** (runs, errors, provider costs)
-- ✅ **5-minute cache** for identical requests
+- ✅ **Real-time results** with provider-specific metrics
+- ✅ **Admin dashboard** with full run history
+- ✅ **Cost & latency tracking** per provider
+- ✅ **Evidence snippets** showing exact mention location
 
 ## Tech Stack
-- **Next.js (App Router)** + React + Tailwind
-- **Node.js** serverless (Vercel)
-- **Postgres** (Prisma) + **Redis** cache
-- **Playwright** for PDF, **SendGrid** for email
-- **Cloudflare R2** (or any S3-compatible) for PDF storage
+- **Next.js 15.5.4** (App Router) + React 19 + Tailwind CSS
+- **TypeScript** with strict type checking
+- **Prisma ORM** + **PostgreSQL** (Supabase)
+- **AI Provider SDKs**:
+  - OpenAI SDK
+  - Anthropic SDK
+  - Google Generative AI SDK
+  - OpenAI-compatible APIs (Grok, DeepSeek, Perplexity)
 
 ## Project Structure
-/docs/ # Specs & planning
+```
 /src/
-app/
-page.tsx # Main form UI
-api/run/route.ts # Backend endpoint
-admin/ # Admin dashboard (MVP)
-components/ # UI components
-lib/ # utils: validation, regex, pdf, email, cache
-styles/globals.css
-/prisma/schema.prisma # DB schema
-public/ # static assets
-.env.example
-vercel.json
+  app/
+    page.tsx              # Main form UI
+    layout.tsx            # Root layout
+    api/
+      run/
+        route.ts          # POST /api/run - Create new check
+        [id]/route.ts     # GET /api/run/:id - Get results
+    admin/
+      page.tsx            # Admin dashboard
+  lib/
+    prisma.ts             # Prisma client
+    validation.ts         # Zod schemas
+    domainRegex.ts        # Domain matching logic
+    providers/            # AI provider integrations
+      openai.ts
+      grok.ts
+      deepseek.ts
+      perplexity.ts
+      gemini.ts
+      claude.ts
+/prisma/
+  schema.prisma           # Database schema
+```
 
-## Environment Variables
-Copy `.env.example` → `.env.local` and fill in your keys:
-OPENAI_API_KEY=
-ANTHROPIC_API_KEY=
-GEMINI_API_KEY=
-PERPLEXITY_API_KEY=
-SENDGRID_API_KEY=
-DATABASE_URL=
-REDIS_URL=
-R2_ACCESS_KEY_ID=
-R2_SECRET_ACCESS_KEY=
-R2_BUCKET_URL=
+## Setup Instructions
+
+### 1. Clone and Install
+
+```bash
+git clone <repository-url>
+cd seoaoe
+npm install
+```
+
+### 2. Database Setup
+
+1. Create a Supabase project at https://supabase.com
+2. Get your connection string from Project Settings > Database
+3. Copy `.env.example` to `.env.local`
+4. Update `DATABASE_URL` with your Supabase pooler connection string
+
+```bash
+cp .env.example .env.local
+```
+
+### 3. Configure API Keys
+
+Add your API keys to `.env.local`:
+
+```env
+# Required API Keys
+OPENAI_API_KEY=sk-proj-...          # https://platform.openai.com/api-keys
+GROK_API_KEY=xai-...                 # https://console.x.ai/
+DEEPSEEK_API_KEY=sk-...              # https://platform.deepseek.com/api_keys
+PERPLEXITY_API_KEY=pplx-...          # https://www.perplexity.ai/settings/api
+GEMINI_API_KEY=AIzaSy...             # https://aistudio.google.com/app/apikey
+ANTHROPIC_API_KEY=sk-ant-api03-...   # https://console.anthropic.com/settings/keys
+```
+
+### 4. Initialize Database
+
+```bash
+npx prisma generate
+npx prisma db push
+```
+
+### 5. Run Development Server
+
+```bash
+npm run dev
+```
+
+Visit http://localhost:3000 to see the application.
+
+## API Endpoints
+
+### POST /api/run
+Create a new AI visibility check.
+
+**Request Body:**
+```json
+{
+  "keyword": "dating app",
+  "domain": "bumble.com",
+  "country": "US",
+  "language": "en",
+  "email": "user@example.com" // optional
+}
+```
+
+**Response:**
+```json
+{
+  "run_id": "cmgqbcm1d001wu873ym68k15d",
+  "status": "queued",
+  "created_at": "2025-10-14T08:41:52.210Z"
+}
+```
+
+### GET /api/run/:id
+Get results for a specific run.
+
+**Response:**
+```json
+{
+  "run": {
+    "id": "cmgqbcm1d001wu873ym68k15d",
+    "keyword": "dating app",
+    "domain": "bumble.com",
+    "country": "US",
+    "language": "en"
+  },
+  "results": [
+    {
+      "provider": "claude",
+      "model": "claude-3-7-sonnet-20250219",
+      "status": "ok",
+      "mentioned": true,
+      "firstIndex": 292,
+      "evidence": "...snippet...",
+      "latencyMs": 10208,
+      "costUsd": "0.008613"
+    }
+  ]
+}
+```
+
+## Performance Benchmarks
+
+Based on production testing with keyword "dating app" and domain "bumble.com":
+
+| Provider | Model | Avg Latency | Avg Cost | Detection Rate |
+|----------|-------|-------------|----------|----------------|
+| Claude | claude-3-7-sonnet-20250219 | ~10s | $0.0086 | 100% |
+| OpenAI | gpt-4o-mini | ~14-16s | $0.0005 | 100% |
+| Gemini | gemini-2.0-flash-exp | ~13-19s | $0.0006 | 100% |
+| Perplexity | sonar | ~3-27s | $0.0050 | 100% |
+| Grok | grok-3 | ~28-37s | $0.0154 | 100% |
+| DeepSeek | deepseek-chat | ~44-46s | $0.0011 | 100% |
+
+**Total cost per check:** ~$0.03 (all 6 providers)
+**Total time:** ~45s (limited by slowest provider)
+
+## Development
+
+### Build for Production
+
+```bash
+npm run build
+```
+
+### Linting
+
+```bash
+npm run lint
+```
+
+### Database Management
+
+```bash
+# Generate Prisma client
+npx prisma generate
+
+# Push schema changes
+npx prisma db push
+
+# Open Prisma Studio
+npx prisma studio
+```
+
+## Deployment
+
+The application is ready to deploy on Vercel:
+
+1. Push your code to GitHub
+2. Import project in Vercel
+3. Add environment variables in Vercel dashboard
+4. Deploy
+
+## Future Enhancements
+
+- [ ] Redis caching layer for duplicate requests
+- [ ] PDF report generation with Playwright
+- [ ] Email delivery with SendGrid
+- [ ] Rate limiting per IP
+- [ ] User authentication
+- [ ] Historical tracking and analytics
+- [ ] Custom model selection per provider
+- [ ] Webhook support for async results

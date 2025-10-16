@@ -51,6 +51,8 @@ export async function PATCH(request: Request, context: Params) {
             provider: true,
             status: true,
             mentioned: true,
+            answer: true,
+            error: true,
           },
         },
       },
@@ -99,6 +101,7 @@ export async function PATCH(request: Request, context: Params) {
         score: scorePercent,
         mentionCount,
         totalProviders: run.results.length,
+        results: run.results,
       });
 
       return NextResponse.json({

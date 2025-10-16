@@ -8,6 +8,14 @@ const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
+type ProviderResult = {
+  provider: string;
+  status: string;
+  mentioned: boolean;
+  answer: string | null;
+  error: string | null;
+};
+
 type EmailData = {
   runId: string;
   email: string;
@@ -16,6 +24,7 @@ type EmailData = {
   score: number;
   mentionCount: number;
   totalProviders: number;
+  results: ProviderResult[];
   pdfUrl?: string;
 };
 
@@ -32,7 +41,17 @@ interface EmailPayload {
 }
 
 function generateEmailHTML(data: EmailData): string {
-  const { keyword, domain, score, mentionCount, totalProviders, pdfUrl } = data;
+  const { keyword, domain, score, mentionCount, totalProviders, results, pdfUrl } = data;
+
+  const providerNames: Record<string, string> = {
+    openai: 'ChatGPT (OpenAI)',
+    grok: 'Grok (xAI)',
+    deepseek: 'DeepSeek',
+    perplexity: 'Perplexity AI',
+    gemini: 'Gemini (Google)',
+    claude: 'Claude (Anthropic)',
+    google_ai_overview: 'Google AI Overview',
+  };
 
   return `
 <!DOCTYPE html>
@@ -104,6 +123,62 @@ function generateEmailHTML(data: EmailData): string {
       font-weight: 600;
       margin: 20px 0;
     }
+    .results-section {
+      margin: 30px 0;
+    }
+    .results-section h2 {
+      font-size: 20px;
+      margin-bottom: 16px;
+      color: #111827;
+    }
+    .provider-card {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .provider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .provider-name {
+      font-size: 16px;
+      font-weight: 600;
+      color: #111827;
+    }
+    .status-badge {
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .status-mentioned {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    .status-not-mentioned {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    .status-error {
+      background: #fef3c7;
+      color: #92400e;
+    }
+    .provider-answer {
+      color: #4b5563;
+      font-size: 14px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .provider-error {
+      color: #991b1b;
+      font-size: 14px;
+      font-style: italic;
+    }
     .footer {
       text-align: center;
       padding: 30px 0;
@@ -145,6 +220,34 @@ function generateEmailHTML(data: EmailData): string {
       </div>
     </div>
 
+    <div class="results-section">
+      <h2>Detailed Results by AI Provider</h2>
+      ${results.map(result => {
+        const statusClass = result.status === 'ok'
+          ? (result.mentioned ? 'status-mentioned' : 'status-not-mentioned')
+          : 'status-error';
+        const statusText = result.status === 'ok'
+          ? (result.mentioned ? '✓ Mentioned' : '✗ Not Mentioned')
+          : '⚠ Error';
+
+        return `
+        <div class="provider-card">
+          <div class="provider-header">
+            <span class="provider-name">${providerNames[result.provider] || result.provider}</span>
+            <span class="status-badge ${statusClass}">${statusText}</span>
+          </div>
+          ${result.status === 'ok' && result.answer ? `
+            <div class="provider-answer">${result.answer}</div>
+          ` : result.error ? `
+            <div class="provider-error">Error: ${result.error}</div>
+          ` : `
+            <div class="provider-error">No response available</div>
+          `}
+        </div>
+        `;
+      }).join('')}
+    </div>
+
     ${pdfUrl ? `
     <p style="text-align: center;">
       <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}${pdfUrl}" class="cta-button">
@@ -152,11 +255,6 @@ function generateEmailHTML(data: EmailData): string {
       </a>
     </p>
     ` : ''}
-
-    <p style="font-size: 14px; color: #6b7280;">
-      ${pdfUrl ? 'The full report includes detailed breakdowns for each AI provider, evidence snippets, and technical metrics. You can also' : 'You can'} view your results in the
-      <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/admin" style="color: #2563eb;">admin dashboard</a>.
-    </p>
   </div>
 
   <div class="footer">
@@ -171,7 +269,36 @@ function generateEmailHTML(data: EmailData): string {
 }
 
 function generateEmailText(data: EmailData): string {
-  const { keyword, domain, score, mentionCount, totalProviders, pdfUrl } = data;
+  const { keyword, domain, score, mentionCount, totalProviders, results, pdfUrl } = data;
+
+  const providerNames: Record<string, string> = {
+    openai: 'ChatGPT (OpenAI)',
+    grok: 'Grok (xAI)',
+    deepseek: 'DeepSeek',
+    perplexity: 'Perplexity AI',
+    gemini: 'Gemini (Google)',
+    claude: 'Claude (Anthropic)',
+    google_ai_overview: 'Google AI Overview',
+  };
+
+  const resultsText = results.map(result => {
+    const providerName = providerNames[result.provider] || result.provider;
+    const statusText = result.status === 'ok'
+      ? (result.mentioned ? 'MENTIONED' : 'NOT MENTIONED')
+      : 'ERROR';
+
+    let content = `\n${providerName}: ${statusText}\n${'='.repeat(60)}`;
+
+    if (result.status === 'ok' && result.answer) {
+      content += `\n${result.answer}\n`;
+    } else if (result.error) {
+      content += `\nError: ${result.error}\n`;
+    } else {
+      content += `\nNo response available\n`;
+    }
+
+    return content;
+  }).join('\n');
 
   return `
 AI SEO Ranking Report
@@ -184,12 +311,15 @@ Summary:
 - Overall Score: ${score}%
 - Mentions: ${mentionCount} of ${totalProviders} providers
 
-${pdfUrl ? `Download your full PDF report:\n${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}${pdfUrl}\n\n` : ''}View results in the admin dashboard:
-${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/admin
+DETAILED RESULTS BY AI PROVIDER
+${'='.repeat(60)}
+${resultsText}
 
+${pdfUrl ? `\nDownload your full PDF report:\n${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}${pdfUrl}\n` : ''}
 ---
 AI SEO Ranking
 Track your brand's visibility across AI answer engines
+${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}
   `.trim();
 }
 

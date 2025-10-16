@@ -9,7 +9,6 @@ type DownloadButtonProps = {
 
 export function DownloadButton({ runId, isProcessing }: DownloadButtonProps) {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const handleDownload = async () => {
     if (isProcessing) {
@@ -18,7 +17,6 @@ export function DownloadButton({ runId, isProcessing }: DownloadButtonProps) {
     }
 
     setLoading(true);
-    setError(null);
 
     try {
       const response = await fetch(`/api/report/${runId}`, {
@@ -39,7 +37,6 @@ export function DownloadButton({ runId, isProcessing }: DownloadButtonProps) {
         alert("Report generated! PDF downloaded and email sent successfully.");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to generate report");
       alert(`Error: ${err instanceof Error ? err.message : "Failed to generate report"}`);
     } finally {
       setLoading(false);

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
-import { generatePDFReport } from "../../../../lib/pdfGenerator";
 import { sendReportEmail } from "../../../../lib/emailService";
 
 const PROVIDER_WEIGHTS: Record<string, number> = {
@@ -43,19 +42,7 @@ export async function POST(
       return NextResponse.json({ error: "Run not found" }, { status: 404 });
     }
 
-    // Check if already has a report
-    const existingReport = await prisma.report.findUnique({
-      where: { runId },
-    });
-
-    let pdfUrl: string;
-
-    if (existingReport) {
-      pdfUrl = existingReport.pdfUrl;
-    } else {
-      // Generate PDF report
-      pdfUrl = await generatePDFReport(runId);
-    }
+    // PDF generation removed - email-only delivery
 
     // Calculate score for email
     const totalWeight = Object.values(PROVIDER_WEIGHTS).reduce((sum, w) => sum + w, 0);
@@ -81,17 +68,18 @@ export async function POST(
           mentionCount,
           totalProviders: run.results.length,
           results: run.results,
-          pdfUrl,
         });
       } catch (emailError) {
-        console.error("Email send failed, but PDF was generated:", emailError);
-        // Don't fail the request if email fails
+        console.error("Email send failed:", emailError);
+        return NextResponse.json(
+          { error: "Failed to send email" },
+          { status: 500 }
+        );
       }
     }
 
     return NextResponse.json({
       success: true,
-      pdfUrl,
       emailSent: !!run.email,
     });
   } catch (error) {

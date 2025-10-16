@@ -19,6 +19,9 @@ model Run {
   results   RunResult[]
   email     Email?
   report    Report?
+
+  @@index([createdAt])
+  @@index([domain, keyword])
 }
 
 model RunResult {
@@ -36,6 +39,9 @@ model RunResult {
   costUsd            Decimal? @db.Decimal(10, 6)
   rawResponse        Json?
   run                Run      @relation(fields: [runId], references: [id])
+
+  @@index([runId])
+  @@index([provider])
 }
 
 model Email {
@@ -47,6 +53,8 @@ model Email {
   provider String?
   error    String?
   run      Run      @relation(fields: [runId], references: [id])
+
+  @@index([status])
 }
 
 model Report {

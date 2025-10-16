@@ -1,7 +1,5 @@
 import { Resend } from "resend";
 import { prisma } from "./prisma";
-import path from "path";
-import fs from "fs/promises";
 
 // Initialize Resend
 const resend = process.env.RESEND_API_KEY
@@ -24,19 +22,17 @@ type EmailData = {
   mentionCount: number;
   totalProviders: number;
   results: ProviderResult[];
-  pdfUrl?: string;
 };
 
-interface EmailPayload {
-  from: string;
-  to: string;
-  subject: string;
-  text: string;
-  html: string;
-  attachments?: Array<{
-    filename: string;
-    content: Buffer;
-  }>;
+function escapeHtml(text: string): string {
+  const htmlEscapes: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  };
+  return text.replace(/[&<>"']/g, (char) => htmlEscapes[char] || char);
 }
 
 function extractAnswer(rawResponse: unknown): string | null {
@@ -66,7 +62,7 @@ function extractError(rawResponse: unknown): string | null {
 }
 
 function generateEmailHTML(data: EmailData): string {
-  const { keyword, domain, score, mentionCount, totalProviders, results, pdfUrl } = data;
+  const { keyword, domain, score, mentionCount, totalProviders, results } = data;
 
   const providerNames: Record<string, string> = {
     openai: 'ChatGPT (OpenAI)',
@@ -220,16 +216,16 @@ function generateEmailHTML(data: EmailData): string {
 
   <div class="content">
     <p>Hi there,</p>
-    <p>Your AI visibility check for <strong>${keyword}</strong> has been completed. Here's a quick summary:</p>
+    <p>Your AI visibility check for <strong>${escapeHtml(keyword)}</strong> has been completed. Here's a quick summary:</p>
 
     <div class="summary">
       <div class="summary-row">
         <span class="summary-label">Domain</span>
-        <span class="summary-value">${domain}</span>
+        <span class="summary-value">${escapeHtml(domain)}</span>
       </div>
       <div class="summary-row">
         <span class="summary-label">Keyword</span>
-        <span class="summary-value">${keyword}</span>
+        <span class="summary-value">${escapeHtml(keyword)}</span>
       </div>
       <div class="summary-row">
         <span class="summary-label">Overall Score</span>
@@ -261,13 +257,13 @@ function generateEmailHTML(data: EmailData): string {
         return `
         <div class="provider-card">
           <div class="provider-header">
-            <span class="provider-name">${providerNames[result.provider] || result.provider}</span>
+            <span class="provider-name">${escapeHtml(providerNames[result.provider] || result.provider)}</span>
             <span class="status-badge ${statusClass}">${statusText}</span>
           </div>
           ${result.status === 'ok' && answer ? `
-            <div class="provider-answer">${answer}</div>
+            <div class="provider-answer">${escapeHtml(answer)}</div>
           ` : error ? `
-            <div class="provider-error">Error: ${error}</div>
+            <div class="provider-error">Error: ${escapeHtml(error)}</div>
           ` : `
             <div class="provider-error">No response available</div>
           `}
@@ -275,14 +271,6 @@ function generateEmailHTML(data: EmailData): string {
         `;
       }).join('')}
     </div>
-
-    ${pdfUrl ? `
-    <p style="text-align: center;">
-      <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}${pdfUrl}" class="cta-button">
-        📄 Download Full Report (PDF)
-      </a>
-    </p>
-    ` : ''}
   </div>
 
   <div class="footer">
@@ -297,7 +285,7 @@ function generateEmailHTML(data: EmailData): string {
 }
 
 function generateEmailText(data: EmailData): string {
-  const { keyword, domain, score, mentionCount, totalProviders, results, pdfUrl } = data;
+  const { keyword, domain, score, mentionCount, totalProviders, results } = data;
 
   const providerNames: Record<string, string> = {
     openai: 'ChatGPT (OpenAI)',
@@ -346,7 +334,6 @@ DETAILED RESULTS BY AI PROVIDER
 ${'='.repeat(60)}
 ${resultsText}
 
-${pdfUrl ? `\nDownload your full PDF report:\n${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}${pdfUrl}\n` : ''}
 ---
 AI SEO Ranking
 Track your brand's visibility across AI answer engines
@@ -397,27 +384,13 @@ export async function sendReportEmail(data: EmailData): Promise<void> {
   }
 
   try {
-    const emailPayload: EmailPayload = {
+    await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL as string,
       to: data.email,
       subject: `Your AI SEO Ranking Report for "${data.keyword}"`,
       text: generateEmailText(data),
       html: generateEmailHTML(data),
-    };
-
-    // Attach PDF if URL is provided
-    if (data.pdfUrl) {
-      const pdfPath = path.join(process.cwd(), "public", data.pdfUrl);
-      const pdfBuffer = await fs.readFile(pdfPath);
-      emailPayload.attachments = [
-        {
-          filename: `ai-seo-report-${data.domain}.pdf`,
-          content: pdfBuffer,
-        },
-      ];
-    }
-
-    await resend.emails.send(emailPayload);
+    });
 
     // Mark as sent in database
     await prisma.email.upsert({

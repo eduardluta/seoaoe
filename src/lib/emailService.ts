@@ -16,7 +16,7 @@ type EmailData = {
   score: number;
   mentionCount: number;
   totalProviders: number;
-  pdfUrl: string;
+  pdfUrl?: string;
 };
 
 function generateEmailHTML(data: EmailData): string {
@@ -133,15 +133,16 @@ function generateEmailHTML(data: EmailData): string {
       </div>
     </div>
 
+    ${pdfUrl ? `
     <p style="text-align: center;">
       <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}${pdfUrl}" class="cta-button">
         📄 Download Full Report (PDF)
       </a>
     </p>
+    ` : ''}
 
     <p style="font-size: 14px; color: #6b7280;">
-      The full report includes detailed breakdowns for each AI provider, evidence snippets,
-      and technical metrics. You can also view your results in the
+      ${pdfUrl ? 'The full report includes detailed breakdowns for each AI provider, evidence snippets, and technical metrics. You can also' : 'You can'} view your results in the
       <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/admin" style="color: #2563eb;">admin dashboard</a>.
     </p>
   </div>
@@ -171,10 +172,7 @@ Summary:
 - Overall Score: ${score}%
 - Mentions: ${mentionCount} of ${totalProviders} providers
 
-Download your full PDF report:
-${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}${pdfUrl}
-
-View results in the admin dashboard:
+${pdfUrl ? `Download your full PDF report:\n${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}${pdfUrl}\n\n` : ''}View results in the admin dashboard:
 ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/admin
 
 ---
@@ -216,23 +214,27 @@ export async function sendReportEmail(data: EmailData): Promise<void> {
   }
 
   try {
-    // Read PDF file to attach
-    const pdfPath = path.join(process.cwd(), "public", data.pdfUrl);
-    const pdfBuffer = await fs.readFile(pdfPath);
-
-    await resend.emails.send({
+    const emailPayload: any = {
       from: process.env.RESEND_FROM_EMAIL,
       to: data.email,
       subject: `Your AI SEO Ranking Report for "${data.keyword}"`,
       text: generateEmailText(data),
       html: generateEmailHTML(data),
-      attachments: [
+    };
+
+    // Attach PDF if URL is provided
+    if (data.pdfUrl) {
+      const pdfPath = path.join(process.cwd(), "public", data.pdfUrl);
+      const pdfBuffer = await fs.readFile(pdfPath);
+      emailPayload.attachments = [
         {
           filename: `ai-seo-report-${data.domain}.pdf`,
           content: pdfBuffer,
         },
-      ],
-    });
+      ];
+    }
+
+    await resend.emails.send(emailPayload);
 
     // Mark as sent in database
     await prisma.email.create({

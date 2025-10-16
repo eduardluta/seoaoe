@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { generatePDFReport } from "@/lib/pdfGenerator";
 import { sendReportEmail } from "@/lib/emailService";
 
 type Params = { params: Promise<{ id: string }> };
@@ -78,20 +77,6 @@ export async function PATCH(request: Request, context: Params) {
       },
     });
 
-    // Check if PDF already exists
-    const existingReport = await prisma.report.findUnique({
-      where: { runId },
-    });
-
-    let pdfUrl: string;
-
-    if (existingReport) {
-      pdfUrl = existingReport.pdfUrl;
-    } else {
-      // Generate PDF report
-      pdfUrl = await generatePDFReport(runId);
-    }
-
     // Calculate score for email
     const totalWeight = Object.values(PROVIDER_WEIGHTS).reduce((sum, w) => sum + w, 0);
     const weightedScore = run.results.reduce((score, result) => {
@@ -114,7 +99,6 @@ export async function PATCH(request: Request, context: Params) {
         score: scorePercent,
         mentionCount,
         totalProviders: run.results.length,
-        pdfUrl,
       });
 
       return NextResponse.json({

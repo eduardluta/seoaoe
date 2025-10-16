@@ -33,6 +33,8 @@ export async function POST(
             provider: true,
             status: true,
             mentioned: true,
+            answer: true,
+            error: true,
           },
         },
       },
@@ -79,6 +81,7 @@ export async function POST(
           score: scorePercent,
           mentionCount,
           totalProviders: run.results.length,
+          results: run.results,
           pdfUrl,
         });
       } catch (emailError) {

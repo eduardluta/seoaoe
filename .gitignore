@@ -46,3 +46,6 @@ next-env.d.ts
 # test files
 test-*.js
 check-*.js
+
+# generated reports
+/public/reports/*.pdf

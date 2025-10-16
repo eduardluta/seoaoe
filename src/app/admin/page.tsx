@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { PROVIDER_COUNT } from "@/lib/providers/registry";
 import Link from "next/link";
 import { ProviderCard } from "./ProviderCard";
+import { DownloadButton } from "./DownloadButton";
 
 const PROVIDER_LABELS: Record<string, string> = {
   openai: "ChatGPT",
@@ -192,6 +193,7 @@ export default async function AdminPage() {
                       {mentionCount} of {expectedProviders} providers mentioned the domain
                     </span>
                     <span className="opacity-60">Cost ${totalCost.toFixed(4)}</span>
+                    <DownloadButton runId={run.id} isProcessing={isStillProcessing} />
                   </>
                 )}
               </div>

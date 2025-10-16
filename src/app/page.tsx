@@ -176,6 +176,10 @@ export default function Home() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [checkResults, setCheckResults] = useState<RunResult[]>([]);
   const [expectedProviders, setExpectedProviders] = useState<number>(PROVIDER_ORDER.length);
+  const [runId, setRunId] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [emailSaved, setEmailSaved] = useState(false);
   const processedCount = checkResults.length;
   const mentionCount = useMemo(
     () => checkResults.filter((result) => result.status === "ok" && result.mentioned).length,
@@ -187,6 +191,9 @@ export default function Home() {
     setError(null);
     setStatusMessage("Starting visibility check…");
     setCheckResults([]);
+    setRunId(null);
+    setEmail("");
+    setEmailSaved(false);
     setLoading(true);
 
     try {
@@ -220,7 +227,8 @@ export default function Home() {
         return;
       }
 
-      const runId = json.run_id as string;
+      const currentRunId = json.run_id as string;
+      setRunId(currentRunId);
       const initialExpected =
         Number(json.providers_expected) || Number(json.providersExpected) || PROVIDER_ORDER.length;
       setExpectedProviders(initialExpected);
@@ -228,7 +236,7 @@ export default function Home() {
       const maxAttempts = 40;
 
       const fetchResults = async () => {
-        const resultRes = await fetch(`/api/run/${runId}`);
+        const resultRes = await fetch(`/api/run/${currentRunId}`);
         if (!resultRes.ok) {
           throw new Error(`Failed to load results (${resultRes.status})`);
         }
@@ -293,6 +301,39 @@ export default function Home() {
       setError("Network error");
       setLoading(false);
       setStatusMessage(null);
+    }
+  }
+
+  async function handleSaveEmail() {
+    if (!runId || !email.trim()) return;
+
+    setEmailSaving(true);
+    try {
+      const res = await fetch(`/api/run/${runId}/email`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+
+      if (!res.ok) {
+        let errorMessage = "Failed to send email";
+        try {
+          const errorData = await res.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // If JSON parsing fails, use default error message
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Parse successful response
+      await res.json();
+      setEmailSaved(true);
+      setEmailSaving(false);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to send email. Please try again.");
+      console.error(err);
+      setEmailSaving(false);
     }
   }
 
@@ -385,16 +426,6 @@ export default function Home() {
               </p>
             )}
           </form>
-
-          {/* Admin Link */}
-          <div className="mt-8 text-center">
-            <Link
-              href="/admin"
-              className="text-sm text-slate-400 hover:text-slate-600 dark:text-neutral-500 dark:hover:text-neutral-300 transition-colors"
-            >
-              View dashboard →
-            </Link>
-          </div>
         </div>
 
         {statusMessage && (
@@ -453,15 +484,41 @@ export default function Home() {
               })}
             </div>
 
-            {/* View Details Link */}
-            <div className="mt-6 text-center">
-              <Link
-                href="/admin"
-                className="text-sm text-slate-600 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors"
-              >
-                View full details in dashboard →
-              </Link>
-            </div>
+            {/* Email Section - appears after results */}
+            {!loading && !emailSaved && (
+              <div className="mt-8 p-6 bg-slate-50 dark:bg-neutral-800 rounded-lg">
+                <h3 className="text-lg font-semibold mb-3">Get Your Report via Email</h3>
+                <p className="text-sm text-slate-600 dark:text-neutral-400 mb-4">
+                  Enter your email to instantly receive a PDF report with detailed analysis
+                </p>
+                <div className="flex gap-3">
+                  <input
+                    type="email"
+                    placeholder="your@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={emailSaving}
+                    className="flex-1 h-12 rounded-lg border border-slate-200 bg-white px-4 text-base text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:placeholder:text-neutral-500 dark:focus:border-neutral-600 dark:focus:ring-neutral-800"
+                  />
+                  <button
+                    onClick={handleSaveEmail}
+                    disabled={emailSaving || !email.trim()}
+                    className="h-12 px-6 rounded-lg bg-slate-900 text-white font-semibold transition hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-white dark:text-neutral-950"
+                  >
+                    {emailSaving ? "Sending..." : "Send Report"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {emailSaved && (
+              <div className="mt-8 p-6 bg-green-50 dark:bg-green-900/20 rounded-lg text-center">
+                <p className="text-green-800 dark:text-green-300 font-medium">
+                  ✓ Report sent! Check your inbox for the PDF report.
+                </p>
+              </div>
+            )}
+
           </section>
         )}
       </main>

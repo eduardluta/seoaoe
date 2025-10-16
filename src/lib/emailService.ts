@@ -186,10 +186,15 @@ export async function sendReportEmail(data: EmailData): Promise<void> {
     console.warn("RESEND_API_KEY not configured. Skipping email send.");
 
     // Mark as failed in database
-    await prisma.email.create({
-      data: {
+    await prisma.email.upsert({
+      where: { runId: data.runId },
+      create: {
         runId: data.runId,
         toEmail: data.email,
+        status: "failed",
+        error: "Resend API key not configured",
+      },
+      update: {
         status: "failed",
         error: "Resend API key not configured",
       },
@@ -201,10 +206,15 @@ export async function sendReportEmail(data: EmailData): Promise<void> {
   if (!process.env.RESEND_FROM_EMAIL) {
     console.warn("RESEND_FROM_EMAIL not configured. Skipping email send.");
 
-    await prisma.email.create({
-      data: {
+    await prisma.email.upsert({
+      where: { runId: data.runId },
+      create: {
         runId: data.runId,
         toEmail: data.email,
+        status: "failed",
+        error: "Resend from email not configured",
+      },
+      update: {
         status: "failed",
         error: "Resend from email not configured",
       },
@@ -237,10 +247,16 @@ export async function sendReportEmail(data: EmailData): Promise<void> {
     await resend.emails.send(emailPayload);
 
     // Mark as sent in database
-    await prisma.email.create({
-      data: {
+    await prisma.email.upsert({
+      where: { runId: data.runId },
+      create: {
         runId: data.runId,
         toEmail: data.email,
+        status: "sent",
+        sentAt: new Date(),
+        provider: "resend",
+      },
+      update: {
         status: "sent",
         sentAt: new Date(),
         provider: "resend",
@@ -252,10 +268,16 @@ export async function sendReportEmail(data: EmailData): Promise<void> {
     console.error("Error sending email:", error);
 
     // Mark as failed in database
-    await prisma.email.create({
-      data: {
+    await prisma.email.upsert({
+      where: { runId: data.runId },
+      create: {
         runId: data.runId,
         toEmail: data.email,
+        status: "failed",
+        error: error instanceof Error ? error.message : String(error),
+        provider: "resend",
+      },
+      update: {
         status: "failed",
         error: error instanceof Error ? error.message : String(error),
         provider: "resend",

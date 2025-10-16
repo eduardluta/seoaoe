@@ -12,8 +12,7 @@ type ProviderResult = {
   provider: string;
   status: string;
   mentioned: boolean;
-  answer: string | null;
-  error: string | null;
+  rawResponse: unknown;
 };
 
 type EmailData = {
@@ -38,6 +37,32 @@ interface EmailPayload {
     filename: string;
     content: Buffer;
   }>;
+}
+
+function extractAnswer(rawResponse: unknown): string | null {
+  if (!rawResponse || typeof rawResponse !== 'object') return null;
+  const response = rawResponse as Record<string, unknown>;
+
+  // Try to find answer in common fields
+  if (typeof response.answer === 'string') return response.answer;
+  if (typeof response.text === 'string') return response.text;
+  if (typeof response.content === 'string') return response.content;
+  if (typeof response.response === 'string') return response.response;
+
+  return null;
+}
+
+function extractError(rawResponse: unknown): string | null {
+  if (!rawResponse || typeof rawResponse !== 'object') return null;
+  const response = rawResponse as Record<string, unknown>;
+
+  if (typeof response.error === 'string') return response.error;
+  if (response.error && typeof response.error === 'object') {
+    const errorObj = response.error as Record<string, unknown>;
+    if (typeof errorObj.message === 'string') return errorObj.message;
+  }
+
+  return null;
 }
 
 function generateEmailHTML(data: EmailData): string {
@@ -230,16 +255,19 @@ function generateEmailHTML(data: EmailData): string {
           ? (result.mentioned ? '✓ Mentioned' : '✗ Not Mentioned')
           : '⚠ Error';
 
+        const answer = extractAnswer(result.rawResponse);
+        const error = extractError(result.rawResponse);
+
         return `
         <div class="provider-card">
           <div class="provider-header">
             <span class="provider-name">${providerNames[result.provider] || result.provider}</span>
             <span class="status-badge ${statusClass}">${statusText}</span>
           </div>
-          ${result.status === 'ok' && result.answer ? `
-            <div class="provider-answer">${result.answer}</div>
-          ` : result.error ? `
-            <div class="provider-error">Error: ${result.error}</div>
+          ${result.status === 'ok' && answer ? `
+            <div class="provider-answer">${answer}</div>
+          ` : error ? `
+            <div class="provider-error">Error: ${error}</div>
           ` : `
             <div class="provider-error">No response available</div>
           `}
@@ -287,12 +315,15 @@ function generateEmailText(data: EmailData): string {
       ? (result.mentioned ? 'MENTIONED' : 'NOT MENTIONED')
       : 'ERROR';
 
+    const answer = extractAnswer(result.rawResponse);
+    const error = extractError(result.rawResponse);
+
     let content = `\n${providerName}: ${statusText}\n${'='.repeat(60)}`;
 
-    if (result.status === 'ok' && result.answer) {
-      content += `\n${result.answer}\n`;
-    } else if (result.error) {
-      content += `\nError: ${result.error}\n`;
+    if (result.status === 'ok' && answer) {
+      content += `\n${answer}\n`;
+    } else if (error) {
+      content += `\nError: ${error}\n`;
     } else {
       content += `\nNo response available\n`;
     }

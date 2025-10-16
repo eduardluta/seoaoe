@@ -1,12 +1,13 @@
 // src/lib/providers/claude.ts
 import Anthropic from "@anthropic-ai/sdk";
-import type { RunRequest, ProviderResult } from "../validation";
+import type { RunRequest } from "../validation";
+import type { ProviderRunResult } from "./registry";
 import { buildDomainRegex } from "../domainRegex";
 
 /**
  * Check domain mention using Anthropic Claude API
  */
-export async function checkWithClaude(input: RunRequest): Promise<ProviderResult> {
+export async function checkWithClaude(input: RunRequest): Promise<ProviderRunResult> {
   const { keyword, domain, country, language } = input;
 
   if (!process.env.ANTHROPIC_API_KEY) {

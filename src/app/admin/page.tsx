@@ -1,6 +1,67 @@
 // src/app/admin/page.tsx
 import { prisma } from "@/lib/prisma";
+import { PROVIDER_COUNT } from "@/lib/providers/registry";
 import Link from "next/link";
+import { ProviderCard } from "./ProviderCard";
+
+const PROVIDER_LABELS: Record<string, string> = {
+  openai: "ChatGPT",
+  grok: "Grok",
+  deepseek: "DeepSeek",
+  perplexity: "Perplexity",
+  gemini: "Gemini",
+  claude: "Claude",
+  google_ai_overview: "Google AI Overview",
+};
+
+const PROVIDER_ORDER = [
+  "google_ai_overview",
+  "openai",
+  "perplexity",
+  "grok",
+  "gemini",
+  "claude",
+  "deepseek",
+];
+
+const PROVIDER_WEIGHTS: Record<string, number> = {
+  openai: 0.15,
+  grok: 0.15,
+  deepseek: 0.15,
+  perplexity: 0.15,
+  gemini: 0.15,
+  claude: 0.15,
+  google_ai_overview: 0.10,
+};
+
+const TOTAL_WEIGHT = Object.values(PROVIDER_WEIGHTS).reduce((sum, value) => sum + value, 0);
+const COMPLETED_STATUSES = new Set(["ok", "error", "timeout"]);
+
+function toCostNumber(value: unknown): number {
+  if (value === null || value === undefined) {
+    return 0;
+  }
+
+  if (typeof value === "number") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  if (typeof value === "object" && value !== null && "toNumber" in value) {
+    try {
+      const numeric = (value as { toNumber: () => number }).toNumber();
+      return Number.isFinite(numeric) ? numeric : 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  return 0;
+}
 
 export const dynamic = "force-dynamic"; // always fetch fresh on each load
 
@@ -33,9 +94,9 @@ export default async function AdminPage() {
   });
 
   return (
-    <main className="min-h-screen px-6 py-10 max-w-7xl mx-auto">
+    <main className="min-h-screen px-4 py-6 max-w-6xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-medium mb-1">Admin Dashboard</h1>
           <p className="text-sm opacity-60">Recent visibility checks</p>
@@ -49,7 +110,7 @@ export default async function AdminPage() {
       </div>
 
       {/* Runs List */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {runs.length === 0 && (
           <div className="bg-neutral-100 dark:bg-neutral-800 rounded-xl p-8 text-center">
             <p className="opacity-60">No runs yet. Create your first check from the home page.</p>
@@ -57,14 +118,44 @@ export default async function AdminPage() {
         )}
 
         {runs.map((run) => {
-          const result = run.results[0]; // For now we only have OpenAI
-          const hasMention = result?.mentioned === true;
-          const hasResult = result?.status === "ok";
+          const resultsByProvider = [...run.results].sort((a, b) => {
+            const indexA = PROVIDER_ORDER.indexOf(a.provider);
+            const indexB = PROVIDER_ORDER.indexOf(b.provider);
+            if (indexA === -1 && indexB === -1) return a.provider.localeCompare(b.provider);
+            if (indexA === -1) return 1;
+            if (indexB === -1) return -1;
+            return indexA - indexB;
+          });
+
+          const weightedScore = resultsByProvider.reduce((score, result) => {
+            const weight = PROVIDER_WEIGHTS[result.provider] ?? 0;
+            if (result.status === "ok" && result.mentioned) {
+              return score + weight;
+            }
+            return score;
+          }, 0);
+
+          const scorePercent = Math.round((weightedScore / (TOTAL_WEIGHT || 1)) * 100);
+
+          const mentionCount = resultsByProvider.filter(
+            (result) => result.status === "ok" && result.mentioned
+          ).length;
+          const providerCount = resultsByProvider.length;
+
+          const totalCost = resultsByProvider.reduce(
+            (sum, result) => sum + toCostNumber(result.costUsd),
+            0
+          );
+
+          const expectedProviders = PROVIDER_COUNT;
+          const isStillProcessing =
+            providerCount < expectedProviders ||
+            resultsByProvider.some((r) => !COMPLETED_STATUSES.has(r.status));
 
           return (
             <div
               key={run.id}
-              className="bg-neutral-100 dark:bg-neutral-800 rounded-xl p-6"
+              className="bg-neutral-100 dark:bg-neutral-800 rounded-2xl p-5 shadow-sm"
             >
               {/* Query Info */}
               <div className="flex items-start justify-between mb-4">
@@ -79,101 +170,61 @@ export default async function AdminPage() {
                 </div>
               </div>
 
-              {/* Results */}
-              <div className="flex items-center gap-4">
-                {!hasResult && (
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
+                {isStillProcessing ? (
                   <div className="flex items-center gap-2 text-sm opacity-60">
                     <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
-                    <span>Processing...</span>
+                    <span>Processing providers…</span>
                   </div>
-                )}
-
-                {hasResult && (
+                ) : (
                   <>
-                    {/* Status Badge */}
                     <div
-                      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${
-                        hasMention
-                          ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
-                          : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
+                      className={`inline-flex items-center gap-1.5 rounded-full border border-current px-3 py-1 font-semibold ${
+                        mentionCount > 0
+                          ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
+                          : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300"
                       }`}
                     >
-                      {hasMention ? (
-                        <>
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path
-                              fillRule="evenodd"
-                              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                          Mentioned
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path
-                              fillRule="evenodd"
-                              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                          Not Mentioned
-                        </>
-                      )}
+                      <span>Overall score</span>
+                      <span className="text-base font-bold">{scorePercent}</span>
                     </div>
-
-                    {/* Provider Info */}
-                    <div className="flex items-center gap-4 flex-wrap text-sm opacity-60">
-                      <span className="capitalize">
-                        {result.provider} {result.model && `(${result.model})`}
-                      </span>
-                      {result.latencyMs && (
-                        <span>• {(result.latencyMs / 1000).toFixed(1)}s</span>
-                      )}
-                      {result.rawResponse?.tokens && (
-                        <span>• {result.rawResponse.tokens} tokens</span>
-                      )}
-                      {result.costUsd !== null && result.costUsd !== undefined && (
-                        <span className="font-medium text-green-600 dark:text-green-400">
-                          • ${result.costUsd.toFixed(4)}
-                        </span>
-                      )}
-                    </div>
+                    <span className="opacity-60">
+                      {mentionCount} of {expectedProviders} providers mentioned the domain
+                    </span>
+                    <span className="opacity-60">Cost ${totalCost.toFixed(4)}</span>
                   </>
                 )}
               </div>
 
-              {/* Evidence Snippet - Only show if mentioned */}
-              {hasResult && hasMention && result.evidence && (
-                <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                  <div className="flex items-start gap-2 mb-2">
-                    <svg
-                      className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    <div className="flex-1">
-                      <p className="text-xs font-medium text-green-700 dark:text-green-400 mb-1">
-                        Found at position {result.firstIndex}
-                      </p>
-                      <p className="text-sm text-green-900 dark:text-green-100 italic">
-                        {result.evidence}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {/* Provider breakdown */}
+              <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+                {resultsByProvider.map((result) => {
+                  const label = PROVIDER_LABELS[result.provider] ?? result.provider;
+                  const weight = PROVIDER_WEIGHTS[result.provider] ?? 0;
+                  const isSuccess = result.status === "ok";
+                  const mentioned = Boolean(isSuccess && result.mentioned);
+
+                  return (
+                    <ProviderCard
+                      key={`${run.id}-${result.provider}`}
+                      label={label}
+                      weight={weight}
+                      model={result.model}
+                      status={result.status}
+                      mentioned={mentioned}
+                      evidence={result.evidence}
+                      latencyMs={result.latencyMs}
+                      costUsd={result.costUsd}
+                      rawResponse={result.rawResponse}
+                      targetDomain={run.domain}
+                    />
+                  );
+                })}
+              </div>
 
               {/* Run ID */}
-              <div className="mt-4 pt-4 border-t border-neutral-300 dark:border-neutral-700">
-                <code className="text-xs opacity-40 font-mono">ID: {run.id}</code>
+              <div className="mt-3 pt-3 border-t border-neutral-300 dark:border-neutral-700">
+                <code className="text-[11px] opacity-40 font-mono">ID: {run.id}</code>
               </div>
             </div>
           );
@@ -182,4 +233,3 @@ export default async function AdminPage() {
     </main>
   );
 }
-

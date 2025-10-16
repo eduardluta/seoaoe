@@ -1,12 +1,13 @@
 // src/lib/providers/gemini.ts
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import type { RunRequest, ProviderResult } from "../validation";
+import type { RunRequest } from "../validation";
+import type { ProviderRunResult } from "./registry";
 import { buildDomainRegex } from "../domainRegex";
 
 /**
  * Check domain mention using Google Gemini API
  */
-export async function checkWithGemini(input: RunRequest): Promise<ProviderResult> {
+export async function checkWithGemini(input: RunRequest): Promise<ProviderRunResult> {
   const { keyword, domain, country, language } = input;
 
   if (!process.env.GEMINI_API_KEY) {

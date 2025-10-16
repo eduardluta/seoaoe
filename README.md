@@ -5,13 +5,15 @@ The application queries 6 major AI providers in parallel and returns binary resu
 
 ## Features
 - ✅ Inputs: **Keyword**, **Domain**, **Country (ISO-2)**, **Language (ISO-639-1)**
-- ✅ Parallel checks across **6 AI Providers**:
+- ✅ Parallel checks across **7 AI Providers**:
   - OpenAI (gpt-4o-mini)
   - Grok (grok-3)
   - DeepSeek (deepseek-chat)
   - Perplexity (sonar)
   - Google Gemini (gemini-2.0-flash-exp)
   - Anthropic Claude (claude-3-7-sonnet-20250219)
+  - Google AI Overview (via SerpAPI)
+- ✅ **Redis caching** for instant results on duplicate queries (24h TTL)
 - ✅ **Regex** validation of mentions (anti-hallucination)
 - ✅ **Real-time results** with provider-specific metrics
 - ✅ **Admin dashboard** with full run history
@@ -22,11 +24,13 @@ The application queries 6 major AI providers in parallel and returns binary resu
 - **Next.js 15.5.4** (App Router) + React 19 + Tailwind CSS
 - **TypeScript** with strict type checking
 - **Prisma ORM** + **PostgreSQL** (Supabase)
+- **Redis** (ioredis) for caching
 - **AI Provider SDKs**:
   - OpenAI SDK
   - Anthropic SDK
   - Google Generative AI SDK
   - OpenAI-compatible APIs (Grok, DeepSeek, Perplexity)
+  - SerpAPI for Google AI Overview
 
 ## Project Structure
 ```
@@ -42,15 +46,18 @@ The application queries 6 major AI providers in parallel and returns binary resu
       page.tsx            # Admin dashboard
   lib/
     prisma.ts             # Prisma client
+    redis.ts              # Redis client & caching utilities
     validation.ts         # Zod schemas
     domainRegex.ts        # Domain matching logic
     providers/            # AI provider integrations
+      registry.ts         # Provider registry & types
       openai.ts
       grok.ts
       deepseek.ts
       perplexity.ts
       gemini.ts
       claude.ts
+      googleAiOverview.ts
 /prisma/
   schema.prisma           # Database schema
 ```
@@ -76,7 +83,30 @@ npm install
 cp .env.example .env.local
 ```
 
-### 3. Configure API Keys
+### 3. Redis Setup (Optional but Recommended)
+
+Redis is used for caching duplicate queries (24h TTL) to save costs and improve response times.
+
+**Local Development (macOS):**
+```bash
+# Install Redis
+brew install redis
+
+# Start Redis
+brew services start redis
+```
+
+**Production (Upstash recommended):**
+1. Create a free Redis database at https://upstash.com
+2. Copy the Redis URL
+3. Add to `.env.local`:
+```env
+REDIS_URL=redis://default:password@redis-12345.upstash.io:6379
+```
+
+If Redis is not configured, the app will attempt to connect to `localhost:6379` and log errors if unavailable, but will continue to function without caching.
+
+### 4. Configure API Keys
 
 Add your API keys to `.env.local`:
 
@@ -88,16 +118,20 @@ DEEPSEEK_API_KEY=sk-...              # https://platform.deepseek.com/api_keys
 PERPLEXITY_API_KEY=pplx-...          # https://www.perplexity.ai/settings/api
 GEMINI_API_KEY=AIzaSy...             # https://aistudio.google.com/app/apikey
 ANTHROPIC_API_KEY=sk-ant-api03-...   # https://console.anthropic.com/settings/keys
+SERPAPI_API_KEY=...                  # https://serpapi.com/manage-api-key
+
+# Optional: Redis URL for caching
+REDIS_URL=redis://localhost:6379
 ```
 
-### 4. Initialize Database
+### 5. Initialize Database
 
 ```bash
 npx prisma generate
 npx prisma db push
 ```
 
-### 5. Run Development Server
+### 6. Run Development Server
 
 ```bash
 npm run dev
@@ -121,12 +155,24 @@ Create a new AI visibility check.
 }
 ```
 
-**Response:**
+**Response (Cache Miss):**
 ```json
 {
   "run_id": "cmgqbcm1d001wu873ym68k15d",
   "status": "queued",
-  "created_at": "2025-10-14T08:41:52.210Z"
+  "created_at": "2025-10-14T08:41:52.210Z",
+  "providers_expected": 7
+}
+```
+
+**Response (Cache Hit):**
+```json
+{
+  "run_id": "cmgqbcm1d001wu873ym68k15d",
+  "status": "completed",
+  "created_at": "2025-10-14T08:41:52.210Z",
+  "providers_expected": 7,
+  "cached": true
 }
 ```
 
@@ -210,9 +256,28 @@ The application is ready to deploy on Vercel:
 3. Add environment variables in Vercel dashboard
 4. Deploy
 
+## Caching Behavior
+
+The application uses Redis to cache provider results for 24 hours based on the combination of:
+- Keyword (normalized to lowercase)
+- Domain (normalized to lowercase)
+- Country (uppercase)
+- Language (lowercase)
+
+**Cache Key Format:** `aoe:{keyword}:{domain}:{country}:{language}`
+
+**Benefits:**
+- **Instant results** for duplicate queries (typically <100ms vs 45s)
+- **Cost savings** by not re-querying AI providers
+- **Reduced API rate limiting** risk
+
+**Cache Invalidation:**
+- Automatic expiry after 24 hours
+- Manual flush: `redis-cli FLUSHDB` (development only)
+
 ## Future Enhancements
 
-- [ ] Redis caching layer for duplicate requests
+- [x] Redis caching layer for duplicate requests ✅
 - [ ] PDF report generation with Playwright
 - [ ] Email delivery with SendGrid
 - [ ] Rate limiting per IP

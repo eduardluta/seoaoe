@@ -1,13 +1,14 @@
 // src/lib/providers/deepseek.ts
 import OpenAI from "openai";
-import type { RunRequest, ProviderResult } from "../validation";
+import type { RunRequest } from "../validation";
+import type { ProviderRunResult } from "./registry";
 import { buildDomainRegex } from "../domainRegex";
 
 /**
  * Check domain mention using DeepSeek API
  * DeepSeek uses an OpenAI-compatible API
  */
-export async function checkWithDeepSeek(input: RunRequest): Promise<ProviderResult> {
+export async function checkWithDeepSeek(input: RunRequest): Promise<ProviderRunResult> {
   const { keyword, domain, country, language } = input;
 
   if (!process.env.DEEPSEEK_API_KEY) {

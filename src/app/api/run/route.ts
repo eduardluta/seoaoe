@@ -1,12 +1,32 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
 import { RunRequestSchema, type RunRequest } from "../../../lib/validation";
-import { checkWithOpenAI } from "../../../lib/providers/openai";
-import { checkWithGrok } from "../../../lib/providers/grok";
-import { checkWithDeepSeek } from "../../../lib/providers/deepseek";
-import { checkWithPerplexity } from "../../../lib/providers/perplexity";
-import { checkWithGemini } from "../../../lib/providers/gemini";
-import { checkWithClaude } from "../../../lib/providers/claude";
+import {
+  PROVIDERS,
+  PROVIDER_COUNT,
+  type ProviderRunResult,
+} from "../../../lib/providers/registry";
+import { generateCacheKey, getCachedResults, setCachedResults } from "../../../lib/redis";
+
+function buildRawResponse(result: ProviderRunResult) {
+  const payload: Record<string, unknown> = { text: result.rawText };
+  if (typeof result.tokensUsed === "number") {
+    payload.tokens = result.tokensUsed;
+  }
+  return payload;
+}
+
+type CachedProviderResult = {
+  provider: string;
+  model?: string;
+  status: string;
+  mentioned: boolean;
+  firstIndex?: number | null;
+  evidence?: string | null;
+  rawResponse: Record<string, unknown>;
+  latencyMs?: number | null;
+  costUsd?: number | null;
+};
 
 export async function POST(req: Request) {
   try {
@@ -21,8 +41,57 @@ export async function POST(req: Request) {
 
     const { keyword, domain, country, language, email } = parsed.data;
 
-    // Step 1: create Run
-    const run = await prisma.run.create({
+    // Generate cache key
+    const cacheKey = generateCacheKey(keyword, domain, country, language);
+
+    // Check cache first
+    const cachedResults = (await getCachedResults(cacheKey)) as CachedProviderResult[] | null;
+
+    if (cachedResults) {
+      // Cache hit: create Run and populate with cached results
+      const runRecord = await prisma.run.create({
+        data: {
+          keyword: keyword.trim(),
+          domain: domain.toLowerCase().trim(),
+          country: country.toUpperCase(),
+          language: language.trim(),
+          email: email ? { create: { toEmail: email, status: "queued" } } : undefined,
+        },
+        select: { id: true, createdAt: true },
+      });
+
+      // Insert cached results into database sequentially
+      for (const cachedResult of cachedResults) {
+        await prisma.runResult.create({
+          data: {
+            runId: runRecord.id,
+            provider: cachedResult.provider,
+            model: cachedResult.model,
+            status: cachedResult.status,
+            mentioned: cachedResult.mentioned,
+            firstIndex: cachedResult.firstIndex ?? undefined,
+            evidence: cachedResult.evidence ?? undefined,
+            rawResponse: JSON.parse(JSON.stringify(cachedResult.rawResponse)),
+            latencyMs: cachedResult.latencyMs ?? undefined,
+            costUsd: cachedResult.costUsd ?? undefined,
+          },
+        });
+      }
+
+      return NextResponse.json(
+        {
+          run_id: runRecord.id,
+          status: "completed",
+          created_at: runRecord.createdAt,
+          providers_expected: PROVIDER_COUNT,
+          cached: true,
+        },
+        { status: 200 }
+      );
+    }
+
+    // Cache miss: create Run and execute providers
+    const runRecord = await prisma.run.create({
       data: {
         keyword: keyword.trim(),
         domain: domain.toLowerCase().trim(),
@@ -36,198 +105,63 @@ export async function POST(req: Request) {
     // Step 2: run all providers in parallel
     const input: RunRequest = { keyword, domain, country, language, email };
 
-    // Run OpenAI, Grok, DeepSeek, Perplexity, Gemini, and Claude in parallel
-    const providerPromises = [
-      // OpenAI
-      checkWithOpenAI(input)
-        .then((r) =>
-          prisma.runResult.create({
-            data: {
-              runId: run.id,
-              provider: "openai",
-              model: "gpt-4o-mini",
-              status: "ok",
-              mentioned: r.mentioned,
-              firstIndex: r.position ?? undefined,
-              evidence: r.snippet ?? undefined,
-              rawResponse: { text: r.rawText, tokens: r.tokensUsed },
-              latencyMs: r.latencyMs ?? undefined,
-              costUsd: r.costUsd ?? undefined,
-            },
-          })
-        )
-        .catch((e) =>
-          prisma.runResult.create({
-            data: {
-              runId: run.id,
-              provider: "openai",
-              status: "error",
-              mentioned: false,
-              rawResponse: { error: String(e) },
-            },
-          })
-        ),
+    // Run providers in parallel and collect results
+    const providerResults = await Promise.all(
+      PROVIDERS.map(({ key, model, run }) =>
+        run(input)
+          .then((result) => ({
+            provider: key,
+            model,
+            status: "ok" as const,
+            mentioned: result.mentioned,
+            firstIndex: result.position ?? undefined,
+            evidence: result.snippet ?? undefined,
+            rawResponse: buildRawResponse(result),
+            latencyMs: result.latencyMs ?? undefined,
+            costUsd: result.costUsd ?? undefined,
+          }))
+          .catch((error) => ({
+            provider: key,
+            model,
+            status: "error" as const,
+            mentioned: false,
+            firstIndex: undefined,
+            evidence: undefined,
+            rawResponse: { error: String(error) },
+            latencyMs: undefined,
+            costUsd: undefined,
+          }))
+      )
+    );
 
-      // Grok
-      checkWithGrok(input)
-        .then((r) =>
-          prisma.runResult.create({
-            data: {
-              runId: run.id,
-              provider: "grok",
-              model: "grok-3",
-              status: "ok",
-              mentioned: r.mentioned,
-              firstIndex: r.position ?? undefined,
-              evidence: r.snippet ?? undefined,
-              rawResponse: { text: r.rawText, tokens: r.tokensUsed },
-              latencyMs: r.latencyMs ?? undefined,
-              costUsd: r.costUsd ?? undefined,
-            },
-          })
-        )
-        .catch((e) =>
-          prisma.runResult.create({
-            data: {
-              runId: run.id,
-              provider: "grok",
-              status: "error",
-              mentioned: false,
-              rawResponse: { error: String(e) },
-            },
-          })
-        ),
+    // Save results to database sequentially to avoid connection pool exhaustion
+    for (const result of providerResults) {
+      await prisma.runResult.create({
+        data: {
+          runId: runRecord.id,
+          provider: result.provider,
+          model: result.model,
+          status: result.status,
+          mentioned: result.mentioned,
+          firstIndex: result.firstIndex,
+          evidence: result.evidence,
+          rawResponse: JSON.parse(JSON.stringify(result.rawResponse)),
+          latencyMs: result.latencyMs,
+          costUsd: result.costUsd,
+        },
+      });
+    }
 
-      // DeepSeek
-      checkWithDeepSeek(input)
-        .then((r) =>
-          prisma.runResult.create({
-            data: {
-              runId: run.id,
-              provider: "deepseek",
-              model: "deepseek-chat",
-              status: "ok",
-              mentioned: r.mentioned,
-              firstIndex: r.position ?? undefined,
-              evidence: r.snippet ?? undefined,
-              rawResponse: { text: r.rawText, tokens: r.tokensUsed },
-              latencyMs: r.latencyMs ?? undefined,
-              costUsd: r.costUsd ?? undefined,
-            },
-          })
-        )
-        .catch((e) =>
-          prisma.runResult.create({
-            data: {
-              runId: run.id,
-              provider: "deepseek",
-              status: "error",
-              mentioned: false,
-              rawResponse: { error: String(e) },
-            },
-          })
-        ),
-
-      // Perplexity
-      checkWithPerplexity(input)
-        .then((r) =>
-          prisma.runResult.create({
-            data: {
-              runId: run.id,
-              provider: "perplexity",
-              model: "sonar",
-              status: "ok",
-              mentioned: r.mentioned,
-              firstIndex: r.position ?? undefined,
-              evidence: r.snippet ?? undefined,
-              rawResponse: { text: r.rawText, tokens: r.tokensUsed },
-              latencyMs: r.latencyMs ?? undefined,
-              costUsd: r.costUsd ?? undefined,
-            },
-          })
-        )
-        .catch((e) =>
-          prisma.runResult.create({
-            data: {
-              runId: run.id,
-              provider: "perplexity",
-              status: "error",
-              mentioned: false,
-              rawResponse: { error: String(e) },
-            },
-          })
-        ),
-
-      // Gemini
-      checkWithGemini(input)
-        .then((r) =>
-          prisma.runResult.create({
-            data: {
-              runId: run.id,
-              provider: "gemini",
-              model: "gemini-2.0-flash-exp",
-              status: "ok",
-              mentioned: r.mentioned,
-              firstIndex: r.position ?? undefined,
-              evidence: r.snippet ?? undefined,
-              rawResponse: { text: r.rawText, tokens: r.tokensUsed },
-              latencyMs: r.latencyMs ?? undefined,
-              costUsd: r.costUsd ?? undefined,
-            },
-          })
-        )
-        .catch((e) =>
-          prisma.runResult.create({
-            data: {
-              runId: run.id,
-              provider: "gemini",
-              status: "error",
-              mentioned: false,
-              rawResponse: { error: String(e) },
-            },
-          })
-        ),
-
-      // Claude
-      checkWithClaude(input)
-        .then((r) =>
-          prisma.runResult.create({
-            data: {
-              runId: run.id,
-              provider: "claude",
-              model: "claude-3-7-sonnet-20250219",
-              status: "ok",
-              mentioned: r.mentioned,
-              firstIndex: r.position ?? undefined,
-              evidence: r.snippet ?? undefined,
-              rawResponse: { text: r.rawText, tokens: r.tokensUsed },
-              latencyMs: r.latencyMs ?? undefined,
-              costUsd: r.costUsd ?? undefined,
-            },
-          })
-        )
-        .catch((e) =>
-          prisma.runResult.create({
-            data: {
-              runId: run.id,
-              provider: "claude",
-              status: "error",
-              mentioned: false,
-              rawResponse: { error: String(e) },
-            },
-          })
-        ),
-    ];
-
-    // Wait for all providers to complete
-    await Promise.all(providerPromises);
+    // Cache the results for 24 hours
+    await setCachedResults(cacheKey, providerResults, 86400);
 
     // Minimal success response for now
     return NextResponse.json(
       {
-        run_id: run.id,
-        status: "queued", // until we re-enable provider
-        created_at: run.createdAt,
+        run_id: runRecord.id,
+        status: "queued",
+        created_at: runRecord.createdAt,
+        providers_expected: PROVIDER_COUNT,
       },
       { status: 202 }
     );

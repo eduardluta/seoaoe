@@ -3,7 +3,7 @@ import OpenAI from "openai";
 import type { RunRequest } from "../validation";
 import { buildDomainRegex } from "../domainRegex";
 
-type ProviderResult = {
+type ProviderRunResult = {
   mentioned: boolean;
   position?: number | null;
   snippet?: string | null;
@@ -17,7 +17,7 @@ type ProviderResult = {
  * Check if OpenAI's ChatGPT would mention the given domain for the keyword/country/language.
  * Uses regex validation to prevent hallucinations.
  */
-export async function checkWithOpenAI(input: RunRequest): Promise<ProviderResult> {
+export async function checkWithOpenAI(input: RunRequest): Promise<ProviderRunResult> {
   const { keyword, domain, country, language } = input;
 
   if (!process.env.OPENAI_API_KEY) {

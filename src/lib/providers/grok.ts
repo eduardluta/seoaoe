@@ -1,13 +1,14 @@
 // src/lib/providers/grok.ts
 import OpenAI from "openai";
-import type { RunRequest, ProviderResult } from "../validation";
+import type { RunRequest } from "../validation";
+import type { ProviderRunResult } from "./registry";
 import { buildDomainRegex } from "../domainRegex";
 
 /**
  * Check domain mention using Grok (xAI) API
  * Grok uses an OpenAI-compatible API
  */
-export async function checkWithGrok(input: RunRequest): Promise<ProviderResult> {
+export async function checkWithGrok(input: RunRequest): Promise<ProviderRunResult> {
   const { keyword, domain, country, language } = input;
 
   if (!process.env.GROK_API_KEY) {

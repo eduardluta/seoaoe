@@ -11,7 +11,7 @@ const resend = process.env.RESEND_API_KEY
 type ProviderResult = {
   provider: string;
   status: string;
-  mentioned: boolean;
+  mentioned: boolean | null;
   rawResponse: unknown;
 };
 

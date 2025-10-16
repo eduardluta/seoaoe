@@ -19,6 +19,18 @@ type EmailData = {
   pdfUrl?: string;
 };
 
+interface EmailPayload {
+  from: string;
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+  attachments?: Array<{
+    filename: string;
+    content: Buffer;
+  }>;
+}
+
 function generateEmailHTML(data: EmailData): string {
   const { keyword, domain, score, mentionCount, totalProviders, pdfUrl } = data;
 
@@ -224,18 +236,6 @@ export async function sendReportEmail(data: EmailData): Promise<void> {
   }
 
   try {
-    interface EmailPayload {
-      from: string;
-      to: string;
-      subject: string;
-      text: string;
-      html: string;
-      attachments?: Array<{
-        filename: string;
-        content: Buffer;
-      }>;
-    }
-
     const emailPayload: EmailPayload = {
       from: process.env.RESEND_FROM_EMAIL as string,
       to: data.email,

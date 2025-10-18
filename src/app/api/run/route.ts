@@ -55,7 +55,7 @@ export async function POST(req: Request) {
           domain: domain.toLowerCase().trim(),
           country: country.toUpperCase(),
           language: language.trim(),
-          email: email ? { create: { toEmail: email, status: "queued" } } : undefined,
+          email: email ? { create: { id: `email_${Date.now()}`, toEmail: email, status: "queued" } } : undefined,
         },
         select: { id: true, createdAt: true },
       });

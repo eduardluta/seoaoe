@@ -18,7 +18,7 @@ export async function GET(
         country: true,
         language: true,
         createdAt: true,
-        RunResult: {
+        results: {
           select: {
             provider: true,
             model: true,
@@ -40,7 +40,6 @@ export async function GET(
 
     return NextResponse.json({
       ...run,
-      results: run.RunResult,
       providers_expected: PROVIDER_COUNT,
     });
   } catch (err) {

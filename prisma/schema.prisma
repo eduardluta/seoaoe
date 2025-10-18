@@ -38,9 +38,9 @@ model Run {
   createdAt DateTime    @default(now())
   ipHash    String?
   cacheHit  Boolean     @default(false)
-  Email     Email?
-  Report    Report?
-  RunResult RunResult[]
+  email     Email?
+  report    Report?
+  results   RunResult[]
 
   @@index([createdAt])
   @@index([domain, keyword])

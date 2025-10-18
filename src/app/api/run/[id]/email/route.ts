@@ -68,6 +68,7 @@ export async function PATCH(request: Request, context: Params) {
     await prisma.email.upsert({
       where: { runId },
       create: {
+        id: `email_${runId}_${Date.now()}`,
         runId,
         toEmail: email.trim(),
         status: "queued",

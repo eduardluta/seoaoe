@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 type RunResult = {
   provider: string;
@@ -72,6 +72,20 @@ const PROVIDER_ORDER = [
 ];
 
 const COMPLETED_STATUSES = new Set(["ok", "error", "timeout"]);
+
+const LOADING_MESSAGES = [
+  "Starting visibility check…",
+  "Querying AI engines…",
+  "Checking ChatGPT responses…",
+  "Analyzing Google AI Overview…",
+  "Gathering Perplexity results…",
+  "Scanning Claude outputs…",
+  "Reviewing Gemini answers…",
+  "Checking Grok mentions…",
+  "Processing DeepSeek data…",
+  "Comparing AI responses…",
+  "Almost there…",
+];
 
 const DOMAIN_PATTERN = /^(?!-)[a-z0-9-]{1,63}(?<!-)(?:\.[a-z0-9-]{1,63})+$/i;
 
@@ -190,6 +204,20 @@ export default function Home() {
     () => checkResults.filter((result) => result.status === "ok" && result.mentioned).length,
     [checkResults]
   );
+
+  // Rotate loading messages every 3 seconds
+  useEffect(() => {
+    if (!loading || processedCount > 0) return;
+
+    let messageIndex = 0;
+    const rotateMessage = () => {
+      messageIndex = (messageIndex + 1) % LOADING_MESSAGES.length;
+      setStatusMessage(LOADING_MESSAGES[messageIndex]);
+    };
+
+    const interval = setInterval(rotateMessage, 3000);
+    return () => clearInterval(interval);
+  }, [loading, processedCount]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

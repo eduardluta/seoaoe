@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Visibility Checker - SEO-AOE",
-  description: "Check if leading LLMs (ChatGPT, Claude, Gemini, Perplexity) mention your website",
+  title: "SEO-AOE | AI Visibility Checker for Google & ChatGPT Rankings",
+  description: "Check how your brand ranks across Google, ChatGPT, and other AI answer engines with SEO-AOE — the AI visibility tracker for the next generation of search.",
 };
 
 export default function RootLayout({

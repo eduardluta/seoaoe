@@ -427,11 +427,53 @@ export default function Home() {
           </form>
         </div>
 
-        {statusMessage && (
+        {/* Loading State */}
+        {loading && (
+          <div className="mt-12 w-full max-w-2xl">
+            <div className="rounded-xl border border-slate-200 bg-white p-8 dark:border-neutral-700 dark:bg-neutral-900">
+              {/* Spinner */}
+              <div className="flex flex-col items-center justify-center space-y-6">
+                <div className="relative">
+                  <div className="h-16 w-16 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900 dark:border-neutral-700 dark:border-t-neutral-50"></div>
+                  <div className="absolute inset-0 h-16 w-16 animate-pulse rounded-full border-4 border-slate-100 dark:border-neutral-800 opacity-25"></div>
+                </div>
+
+                {/* Status Message */}
+                <div className="text-center">
+                  <p className="text-lg font-semibold text-slate-900 dark:text-neutral-50 mb-2">
+                    {statusMessage || "Processing your request..."}
+                  </p>
+                  <p className="text-sm text-slate-500 dark:text-neutral-400">
+                    This may take up to 30 seconds
+                  </p>
+                </div>
+
+                {/* Progress Info */}
+                {processedCount > 0 && (
+                  <div className="w-full">
+                    <div className="flex justify-between text-sm text-slate-600 dark:text-neutral-400 mb-2">
+                      <span>Progress</span>
+                      <span>{processedCount} of {expectedProviders} providers</span>
+                    </div>
+                    <div className="w-full bg-slate-200 dark:bg-neutral-700 rounded-full h-2">
+                      <div
+                        className="bg-slate-900 dark:bg-neutral-50 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${(processedCount / expectedProviders) * 100}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Status Message when not loading */}
+        {!loading && statusMessage && (
           <p className="mt-6 text-sm text-slate-500 dark:text-neutral-400">{statusMessage}</p>
         )}
 
-        {processedCount > 0 && (
+        {processedCount > 0 && !loading && (
           <section className="mt-12 w-full max-w-2xl">
             {/* Summary */}
             <div className="mb-6 text-center">

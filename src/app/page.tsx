@@ -129,6 +129,27 @@ function toNumber(value: unknown): number | null {
   return null;
 }
 
+function extractDomainsMentionedBefore(text: string, targetIndex: number): string[] {
+  // Extract text before the target domain
+  const textBefore = text.substring(0, targetIndex);
+
+  // Regex to match domain patterns (e.g., example.com, website.de, etc.)
+  const domainRegex = /\b([a-z0-9-]+\.(?:com|de|net|org|co|io|app|ai|ch|fr|it|nl|uk|eu))\b/gi;
+
+  const domains = new Set<string>();
+  let match;
+
+  while ((match = domainRegex.exec(textBefore)) !== null) {
+    const domain = match[1].toLowerCase();
+    // Filter out common non-brand domains
+    if (!domain.includes('example.') && !domain.includes('test.')) {
+      domains.add(domain);
+    }
+  }
+
+  return Array.from(domains);
+}
+
 function parseResults(raw: unknown): RunResult[] {
   if (!Array.isArray(raw)) {
     return [];
@@ -570,9 +591,22 @@ export default function Home() {
                             Position #{result.firstIndex + 1}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-500 dark:text-neutral-400 italic">
+                        <p className="text-xs text-slate-600 dark:text-neutral-300">
                           Your domain appears at character {result.firstIndex + 1} of the AI's response. Lower positions = earlier mention = better visibility.
                         </p>
+                        {result.rawText && (() => {
+                          const otherDomains = extractDomainsMentionedBefore(result.rawText, result.firstIndex);
+                          return otherDomains.length > 0 ? (
+                            <div className="mt-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-2">
+                              <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400 mb-1">
+                                {otherDomains.length} {otherDomains.length === 1 ? 'competitor' : 'competitors'} mentioned before you
+                              </p>
+                              <p className="text-xs text-amber-800 dark:text-amber-200">
+                                {otherDomains.join(', ')}
+                              </p>
+                            </div>
+                          ) : null;
+                        })()}
                       </div>
                     )}
 

@@ -592,7 +592,7 @@ export default function Home() {
                           </span>
                         </div>
                         <p className="text-xs text-slate-600 dark:text-neutral-300">
-                          Your domain appears at character {result.firstIndex + 1} of the AI's response. Lower positions = earlier mention = better visibility.
+                          Your domain appears at character {result.firstIndex + 1} of the AI&apos;s response. Lower positions = earlier mention = better visibility.
                         </p>
                         {result.rawText && (() => {
                           const otherDomains = extractDomainsMentionedBefore(result.rawText, result.firstIndex);

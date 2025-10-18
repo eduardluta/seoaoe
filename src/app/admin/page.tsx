@@ -2,8 +2,11 @@
 import { prisma } from "@/lib/prisma";
 import { PROVIDER_COUNT } from "@/lib/providers/registry";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { ProviderCard } from "./ProviderCard";
 import { DownloadButton } from "./DownloadButton";
+import { LoginForm } from "./LoginForm";
+import { LogoutButton } from "./LogoutButton";
 
 const PROVIDER_LABELS: Record<string, string> = {
   openai: "ChatGPT",
@@ -67,6 +70,15 @@ function toCostNumber(value: unknown): number {
 export const dynamic = "force-dynamic"; // always fetch fresh on each load
 
 export default async function AdminPage() {
+  // Check authentication
+  const cookieStore = await cookies();
+  const isAuthenticated = cookieStore.get("admin-auth")?.value === "authenticated";
+
+  // Show login form if not authenticated
+  if (!isAuthenticated) {
+    return <LoginForm />;
+  }
+
   // get the latest 20 runs with their results
   const runs = await prisma.run.findMany({
     orderBy: { createdAt: "desc" },
@@ -102,12 +114,15 @@ export default async function AdminPage() {
           <h1 className="text-2xl font-medium mb-1">Admin Dashboard</h1>
           <p className="text-sm opacity-60">Recent visibility checks</p>
         </div>
-        <Link
-          href="/"
-          className="text-sm opacity-60 hover:opacity-100 transition-opacity"
-        >
-          ← Back to Home
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link
+            href="/"
+            className="text-sm opacity-60 hover:opacity-100 transition-opacity"
+          >
+            ← Back to Home
+          </Link>
+          <LogoutButton />
+        </div>
       </div>
 
       {/* Runs List */}

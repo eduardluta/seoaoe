@@ -28,6 +28,7 @@ export async function GET(
             evidence: true,
             latencyMs: true,
             costUsd: true,
+            rawResponse: true,
           },
         },
       },

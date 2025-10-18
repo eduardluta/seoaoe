@@ -11,6 +11,7 @@ type RunResult = {
   evidence: string | null;
   latencyMs: number | null;
   costUsd: number | null;
+  rawText: string | null;
 };
 
 const COUNTRIES = [
@@ -150,6 +151,10 @@ function parseResults(raw: unknown): RunResult[] {
       evidence: typeof item.evidence === "string" ? item.evidence : null,
       latencyMs,
       costUsd,
+      rawText:
+        typeof item.rawResponse === "object" && item.rawResponse !== null && typeof (item.rawResponse as Record<string, unknown>).text === "string"
+          ? ((item.rawResponse as Record<string, unknown>).text as string)
+          : null,
     } satisfies RunResult;
   });
 
@@ -175,6 +180,7 @@ export default function Home() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [checkResults, setCheckResults] = useState<RunResult[]>([]);
   const [expectedProviders, setExpectedProviders] = useState<number>(PROVIDER_ORDER.length);
+  const [expandedProviders, setExpandedProviders] = useState<Record<string, boolean>>({});
   const [runId, setRunId] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [emailSaving, setEmailSaving] = useState(false);
@@ -190,6 +196,7 @@ export default function Home() {
     setError(null);
     setStatusMessage("Starting visibility check…");
     setCheckResults([]);
+    setExpandedProviders({});
     setRunId(null);
     setEmail("");
     setEmailSaved(false);
@@ -476,48 +483,102 @@ export default function Home() {
         {processedCount > 0 && !loading && (
           <section className="mt-12 w-full max-w-2xl">
             {/* Summary */}
-            <div className="mb-6 text-center">
+            <div className="mb-8 text-center">
               <p className="text-3xl font-bold text-slate-900 dark:text-neutral-50">
                 {mentionCount}/{expectedProviders}
               </p>
-              <p className="text-sm text-slate-500 dark:text-neutral-400 mt-1">
+              <p className="mt-1 text-sm text-slate-500 dark:text-neutral-400">
                 Providers mentioned your domain
               </p>
             </div>
 
             {/* Results Grid */}
-            <div className="space-y-3">
-              {checkResults.map((result) => {
+            <div className="space-y-4">
+              {checkResults.map((result, index) => {
                 const providerLabel = PROVIDER_LABELS[result.provider] ?? result.provider;
                 const status = result.status.toLowerCase();
                 const isSuccess = status === "ok";
                 const mentioned = Boolean(result.mentioned);
+                const providerKey = `${result.provider}-${result.model ?? index}`;
+                const isExpanded = Boolean(expandedProviders[providerKey]);
+
+                const statusBadge =
+                  isSuccess && mentioned
+                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                    : isSuccess
+                    ? "bg-slate-100 text-slate-600 dark:bg-neutral-800 dark:text-neutral-300"
+                    : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300";
 
                 return (
                   <div
-                    key={result.provider}
-                    className="rounded-lg border border-slate-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900"
+                    key={providerKey}
+                    className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 dark:border-neutral-800 dark:bg-neutral-900"
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-slate-900 dark:text-neutral-50">
-                        {providerLabel}
-                      </span>
-                      <span
-                        className={`text-sm font-semibold ${
-                          isSuccess && mentioned
-                            ? "text-green-600 dark:text-green-400"
-                            : isSuccess
-                            ? "text-slate-400 dark:text-neutral-500"
-                            : "text-yellow-600 dark:text-yellow-400"
-                        }`}
-                      >
-                        {isSuccess ? (mentioned ? "✓ Mentioned" : "Not mentioned") : "Error"}
+                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900 dark:text-neutral-50">
+                          {providerLabel}
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-neutral-400">
+                          {isSuccess
+                            ? mentioned
+                              ? `${domain} was mentioned in the response.`
+                              : `${domain} was not mentioned.`
+                            : "Provider failed to return a response."}
+                        </p>
+                      </div>
+                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${statusBadge}`}>
+                        {isSuccess ? (mentioned ? "Mentioned" : "Not mentioned") : result.status}
                       </span>
                     </div>
 
+                    {typeof result.firstIndex === "number" && result.firstIndex >= 0 && mentioned && (
+                      <div className="mt-3">
+                        <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Position #{result.firstIndex + 1}
+                        </span>
+                      </div>
+                    )}
+
                     {mentioned && result.evidence && (
-                      <p className="mt-2 text-sm text-slate-600 dark:text-neutral-400 italic">
-                        &ldquo;{result.evidence}&rdquo;
+                      <div className="mt-3 rounded-xl bg-slate-50 p-3 text-xs italic text-slate-600 dark:bg-neutral-800 dark:text-neutral-300">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-neutral-500">
+                          Snippet
+                        </p>
+                        <p className="mt-1">&ldquo;{result.evidence}&rdquo;</p>
+                      </div>
+                    )}
+
+                    {result.rawText && (
+                      <div className="mt-3">
+                        <button
+                          type="button"
+                          className="text-xs font-medium text-slate-600 underline decoration-dotted underline-offset-4 transition hover:text-slate-900 dark:text-neutral-300 dark:hover:text-neutral-100"
+                          onClick={() =>
+                            setExpandedProviders((prev) => ({
+                              ...prev,
+                              [providerKey]: !prev[providerKey],
+                            }))
+                          }
+                        >
+                          {isExpanded ? "Hide full response" : "View full response"}
+                        </button>
+                        {isExpanded && (
+                          <div className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-700 shadow-inner dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-200">
+                            <pre className="whitespace-pre-wrap break-words font-sans text-[12px]">
+                              {result.rawText}
+                            </pre>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {!isSuccess && (
+                      <p className="mt-3 text-xs text-rose-500 dark:text-rose-300">
+                        We couldn&apos;t fetch this provider&apos;s answer. Try again later or open the admin dashboard for logs.
                       </p>
                     )}
                   </div>

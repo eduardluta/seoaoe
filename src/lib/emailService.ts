@@ -65,99 +65,182 @@ function generateEmailHTML(data: EmailData): string {
   const { keyword, domain, score, mentionCount, totalProviders, results } = data;
 
   const providerNames: Record<string, string> = {
-    openai: 'ChatGPT (OpenAI)',
-    grok: 'Grok (xAI)',
+    openai: 'ChatGPT',
+    grok: 'Grok',
     deepseek: 'DeepSeek',
-    perplexity: 'Perplexity AI',
-    gemini: 'Gemini (Google)',
-    claude: 'Claude (Anthropic)',
+    perplexity: 'Perplexity',
+    gemini: 'Gemini',
+    claude: 'Claude',
     google_ai_overview: 'Google AI Overview',
   };
+
+  // Determine score color and message
+  const getScoreColor = (score: number) => {
+    if (score >= 70) return '#10b981'; // green
+    if (score >= 40) return '#f59e0b'; // orange
+    return '#ef4444'; // red
+  };
+
+  const getScoreMessage = (score: number) => {
+    if (score >= 70) return 'Excellent visibility! Your domain is well-represented across AI engines.';
+    if (score >= 40) return 'Good start! Consider optimizing content to improve AI visibility.';
+    return 'Low visibility. Focus on creating AI-friendly content to improve rankings.';
+  };
+
+  // Sort results: mentioned first, then not mentioned, then errors
+  const sortedResults = [...results].sort((a, b) => {
+    if (a.status === 'ok' && a.mentioned && !(b.status === 'ok' && b.mentioned)) return -1;
+    if (!(a.status === 'ok' && a.mentioned) && (b.status === 'ok' && b.mentioned)) return 1;
+    if (a.status === 'ok' && !a.mentioned && b.status !== 'ok') return -1;
+    if (a.status !== 'ok' && b.status === 'ok' && !b.mentioned) return 1;
+    return 0;
+  });
 
   return `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
       line-height: 1.6;
       color: #1f2937;
-      max-width: 600px;
-      margin: 0 auto;
+      background-color: #f9fafb;
       padding: 20px;
     }
+    .email-container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
     .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 40px 30px;
       text-align: center;
-      padding: 30px 0;
-      border-bottom: 3px solid #e5e7eb;
     }
     .header h1 {
-      margin: 0;
       font-size: 28px;
-      color: #111827;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+    .header p {
+      font-size: 16px;
+      opacity: 0.95;
     }
     .content {
-      padding: 30px 0;
+      padding: 40px 30px;
     }
-    .summary {
-      background: #f9fafb;
-      border-radius: 8px;
-      padding: 24px;
-      margin: 20px 0;
+    .greeting {
+      font-size: 16px;
+      margin-bottom: 24px;
+      color: #374151;
     }
-    .summary-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 12px 0;
-      border-bottom: 1px solid #e5e7eb;
-    }
-    .summary-row:last-child {
-      border-bottom: none;
-    }
-    .summary-label {
-      font-weight: 600;
-      color: #6b7280;
-    }
-    .summary-value {
-      color: #111827;
-      font-weight: 600;
-    }
-    .score-badge {
-      display: inline-block;
-      padding: 8px 16px;
-      border-radius: 999px;
-      font-weight: 600;
-      font-size: 18px;
-      margin: 20px 0;
-    }
-    .score-good { background: #d1fae5; color: #065f46; }
-    .score-bad { background: #fee2e2; color: #991b1b; }
-    .cta-button {
-      display: inline-block;
-      background: #2563eb;
-      color: white;
-      padding: 14px 28px;
-      text-decoration: none;
-      border-radius: 8px;
-      font-weight: 600;
-      margin: 20px 0;
-    }
-    .results-section {
+    .score-container {
+      background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+      border-radius: 12px;
+      padding: 32px;
+      text-align: center;
       margin: 30px 0;
     }
-    .results-section h2 {
-      font-size: 20px;
-      margin-bottom: 16px;
-      color: #111827;
+    .score-circle {
+      width: 140px;
+      height: 140px;
+      margin: 0 auto 20px;
+      border-radius: 50%;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      position: relative;
     }
-    .provider-card {
-      background: #ffffff;
+    .score-number {
+      font-size: 48px;
+      font-weight: 700;
+      color: ${getScoreColor(score)};
+    }
+    .score-label {
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #6b7280;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+    .score-message {
+      font-size: 15px;
+      color: #4b5563;
+      margin-top: 16px;
+      line-height: 1.5;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 30px 0;
+    }
+    .summary-card {
+      background: #f9fafb;
       border: 1px solid #e5e7eb;
       border-radius: 8px;
       padding: 20px;
-      margin-bottom: 16px;
+      text-align: center;
+    }
+    .summary-card-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 4px;
+    }
+    .summary-card-label {
+      font-size: 13px;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .section-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #111827;
+      margin: 40px 0 20px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    .providers-grid {
+      display: grid;
+      gap: 12px;
+      margin: 20px 0;
+    }
+    .provider-card {
+      background: #ffffff;
+      border: 2px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 18px;
+      transition: all 0.2s;
+    }
+    .provider-card.mentioned {
+      border-color: #10b981;
+      background: #f0fdf4;
+    }
+    .provider-card.not-mentioned {
+      border-color: #ef4444;
+      background: #fef2f2;
+    }
+    .provider-card.error {
+      border-color: #f59e0b;
+      background: #fffbeb;
     }
     .provider-header {
       display: flex;
@@ -169,115 +252,204 @@ function generateEmailHTML(data: EmailData): string {
       font-size: 16px;
       font-weight: 600;
       color: #111827;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .provider-icon {
+      width: 24px;
+      height: 24px;
+      display: inline-block;
     }
     .status-badge {
-      padding: 4px 12px;
+      padding: 6px 12px;
       border-radius: 999px;
       font-size: 12px;
       font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
     .status-mentioned {
-      background: #d1fae5;
-      color: #065f46;
+      background: #10b981;
+      color: white;
     }
     .status-not-mentioned {
-      background: #fee2e2;
-      color: #991b1b;
+      background: #ef4444;
+      color: white;
     }
     .status-error {
-      background: #fef3c7;
-      color: #92400e;
+      background: #f59e0b;
+      color: white;
     }
-    .provider-answer {
+    .provider-snippet {
       color: #4b5563;
       font-size: 14px;
       line-height: 1.6;
-      white-space: pre-wrap;
-      word-wrap: break-word;
+      padding: 12px;
+      background: white;
+      border-radius: 6px;
+      border-left: 3px solid #e5e7eb;
+      margin-top: 8px;
+      max-height: 150px;
+      overflow: hidden;
+    }
+    .provider-card.mentioned .provider-snippet {
+      border-left-color: #10b981;
     }
     .provider-error {
-      color: #991b1b;
-      font-size: 14px;
+      color: #dc2626;
+      font-size: 13px;
       font-style: italic;
+      margin-top: 8px;
+    }
+    .cta-section {
+      text-align: center;
+      padding: 30px;
+      background: #f9fafb;
+      border-radius: 8px;
+      margin: 30px 0;
+    }
+    .cta-button {
+      display: inline-block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 14px 32px;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 16px;
+      margin-top: 12px;
+      transition: all 0.2s;
     }
     .footer {
       text-align: center;
-      padding: 30px 0;
-      border-top: 1px solid #e5e7eb;
-      color: #9ca3af;
-      font-size: 14px;
+      padding: 30px;
+      background: #f9fafb;
+      color: #6b7280;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+    .footer-logo {
+      font-weight: 700;
+      font-size: 16px;
+      color: #111827;
+      margin-bottom: 8px;
+    }
+    .divider {
+      height: 1px;
+      background: #e5e7eb;
+      margin: 30px 0;
+    }
+    @media only screen and (max-width: 600px) {
+      .summary-grid {
+        grid-template-columns: 1fr;
+      }
+      .content {
+        padding: 30px 20px;
+      }
+      .header {
+        padding: 30px 20px;
+      }
+      .score-circle {
+        width: 120px;
+        height: 120px;
+      }
+      .score-number {
+        font-size: 40px;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>🎯 Your AI SEO Ranking Report is Ready</h1>
-  </div>
-
-  <div class="content">
-    <p>Hi there,</p>
-    <p>Your AI visibility check for <strong>${escapeHtml(keyword)}</strong> has been completed. Here's a quick summary:</p>
-
-    <div class="summary">
-      <div class="summary-row">
-        <span class="summary-label">Domain</span>
-        <span class="summary-value">${escapeHtml(domain)}</span>
-      </div>
-      <div class="summary-row">
-        <span class="summary-label">Keyword</span>
-        <span class="summary-value">${escapeHtml(keyword)}</span>
-      </div>
-      <div class="summary-row">
-        <span class="summary-label">Overall Score</span>
-        <span class="summary-value">
-          <span class="score-badge ${mentionCount > 0 ? 'score-good' : 'score-bad'}">
-            ${score}%
-          </span>
-        </span>
-      </div>
-      <div class="summary-row">
-        <span class="summary-label">Mentions</span>
-        <span class="summary-value">${mentionCount} of ${totalProviders} providers</span>
-      </div>
+  <div class="email-container">
+    <!-- Header -->
+    <div class="header">
+      <h1>🎯 AI Visibility Report</h1>
+      <p>Your brand's performance across AI answer engines</p>
     </div>
 
-    <div class="results-section">
-      <h2>Detailed Results by AI Provider</h2>
-      ${results.map(result => {
-        const statusClass = result.status === 'ok'
-          ? (result.mentioned ? 'status-mentioned' : 'status-not-mentioned')
-          : 'status-error';
-        const statusText = result.status === 'ok'
-          ? (result.mentioned ? '✓ Mentioned' : '✗ Not Mentioned')
-          : '⚠ Error';
+    <!-- Content -->
+    <div class="content">
+      <div class="greeting">
+        Hello! 👋<br><br>
+        Your AI visibility check for <strong>"${escapeHtml(keyword)}"</strong> is complete. Here's how <strong>${escapeHtml(domain)}</strong> performs across major AI platforms.
+      </div>
 
-        const answer = extractAnswer(result.rawResponse);
-        const error = extractError(result.rawResponse);
-
-        return `
-        <div class="provider-card">
-          <div class="provider-header">
-            <span class="provider-name">${escapeHtml(providerNames[result.provider] || result.provider)}</span>
-            <span class="status-badge ${statusClass}">${statusText}</span>
-          </div>
-          ${result.status === 'ok' && answer ? `
-            <div class="provider-answer">${escapeHtml(answer)}</div>
-          ` : error ? `
-            <div class="provider-error">Error: ${escapeHtml(error)}</div>
-          ` : `
-            <div class="provider-error">No response available</div>
-          `}
+      <!-- Score Section -->
+      <div class="score-container">
+        <div class="score-label">Overall Visibility Score</div>
+        <div class="score-circle">
+          <div class="score-number">${score}%</div>
         </div>
-        `;
-      }).join('')}
-    </div>
-  </div>
+        <div class="score-message">${getScoreMessage(score)}</div>
+      </div>
 
-  <div class="footer">
-    <p>AI SEO Ranking • Track your brand's visibility across AI answer engines</p>
-    <p style="font-size: 12px; margin-top: 10px;">
-      This is an automated email. If you didn't request this report, please ignore this message.
-    </p>
+      <!-- Summary Grid -->
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="summary-card-value" style="color: #10b981;">${mentionCount}</div>
+          <div class="summary-card-label">Mentioned</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-card-value" style="color: #6b7280;">${totalProviders - mentionCount}</div>
+          <div class="summary-card-label">Not Mentioned</div>
+        </div>
+      </div>
+
+      <!-- Results Section -->
+      <h2 class="section-title">Provider Breakdown</h2>
+      <div class="providers-grid">
+        ${sortedResults.map(result => {
+          const providerName = providerNames[result.provider] || result.provider;
+          const isMentioned = result.status === 'ok' && result.mentioned;
+          const isNotMentioned = result.status === 'ok' && !result.mentioned;
+          const isError = result.status !== 'ok';
+
+          const cardClass = isMentioned ? 'mentioned' : isNotMentioned ? 'not-mentioned' : 'error';
+          const statusClass = isMentioned ? 'status-mentioned' : isNotMentioned ? 'status-not-mentioned' : 'status-error';
+          const statusText = isMentioned ? '✓ Mentioned' : isNotMentioned ? '✗ Not Found' : '⚠ Error';
+
+          const answer = extractAnswer(result.rawResponse);
+          const error = extractError(result.rawResponse);
+
+          return `
+          <div class="provider-card ${cardClass}">
+            <div class="provider-header">
+              <span class="provider-name">${escapeHtml(providerName)}</span>
+              <span class="status-badge ${statusClass}">${statusText}</span>
+            </div>
+            ${isMentioned && answer ? `
+              <div class="provider-snippet">${escapeHtml(answer.substring(0, 200))}${answer.length > 200 ? '...' : ''}</div>
+            ` : isError && error ? `
+              <div class="provider-error">Error: ${escapeHtml(error)}</div>
+            ` : ''}
+          </div>
+          `;
+        }).join('')}
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- CTA Section -->
+      <div class="cta-section">
+        <h3 style="font-size: 18px; margin-bottom: 8px; color: #111827;">Want to improve your AI visibility?</h3>
+        <p style="color: #6b7280; font-size: 14px; margin-bottom: 16px;">
+          Track changes over time and optimize your content for AI answer engines
+        </p>
+        <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://seoaoe.com'}" class="cta-button">
+          Run Another Check →
+        </a>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <div class="footer-logo">SEO-AOE</div>
+      <p>AI Visibility Checker for Google & ChatGPT Rankings</p>
+      <p style="margin-top: 12px; font-size: 12px; color: #9ca3af;">
+        This is an automated email. If you didn't request this report, you can safely ignore it.
+      </p>
+    </div>
   </div>
 </body>
 </html>

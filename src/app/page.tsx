@@ -15,40 +15,159 @@ type RunResult = {
 };
 
 const COUNTRIES = [
+  // North America
   { code: "US", name: "United States", flag: "🇺🇸" },
-  { code: "GB", name: "United Kingdom", flag: "🇬🇧" },
-  { code: "DE", name: "Germany", flag: "🇩🇪" },
-  { code: "FR", name: "France", flag: "🇫🇷" },
-  { code: "ES", name: "Spain", flag: "🇪🇸" },
-  { code: "IT", name: "Italy", flag: "🇮🇹" },
-  { code: "CH", name: "Switzerland", flag: "🇨🇭" },
-  { code: "AT", name: "Austria", flag: "🇦🇹" },
   { code: "CA", name: "Canada", flag: "🇨🇦" },
-  { code: "AU", name: "Australia", flag: "🇦🇺" },
-  { code: "NL", name: "Netherlands", flag: "🇳🇱" },
+  { code: "MX", name: "Mexico", flag: "🇲🇽" },
+
+  // Central America
+  { code: "GT", name: "Guatemala", flag: "🇬🇹" },
+  { code: "HN", name: "Honduras", flag: "🇭🇳" },
+  { code: "SV", name: "El Salvador", flag: "🇸🇻" },
+  { code: "NI", name: "Nicaragua", flag: "🇳🇮" },
+  { code: "CR", name: "Costa Rica", flag: "🇨🇷" },
+  { code: "PA", name: "Panama", flag: "🇵🇦" },
+
+  // Caribbean
+  { code: "CU", name: "Cuba", flag: "🇨🇺" },
+  { code: "DO", name: "Dominican Republic", flag: "🇩🇴" },
+  { code: "PR", name: "Puerto Rico", flag: "🇵🇷" },
+  { code: "JM", name: "Jamaica", flag: "🇯🇲" },
+  { code: "TT", name: "Trinidad and Tobago", flag: "🇹🇹" },
+
+  // South America
+  { code: "BR", name: "Brazil", flag: "🇧🇷" },
+  { code: "AR", name: "Argentina", flag: "🇦🇷" },
+  { code: "CL", name: "Chile", flag: "🇨🇱" },
+  { code: "CO", name: "Colombia", flag: "🇨🇴" },
+  { code: "PE", name: "Peru", flag: "🇵🇪" },
+  { code: "VE", name: "Venezuela", flag: "🇻🇪" },
+  { code: "EC", name: "Ecuador", flag: "🇪🇨" },
+  { code: "BO", name: "Bolivia", flag: "🇧🇴" },
+  { code: "PY", name: "Paraguay", flag: "🇵🇾" },
+  { code: "UY", name: "Uruguay", flag: "🇺🇾" },
+  { code: "GY", name: "Guyana", flag: "🇬🇾" },
+  { code: "SR", name: "Suriname", flag: "🇸🇷" },
+
+  // Western Europe
+  { code: "GB", name: "United Kingdom", flag: "🇬🇧" },
+  { code: "IE", name: "Ireland", flag: "🇮🇪" },
+  { code: "FR", name: "France", flag: "🇫🇷" },
+  { code: "DE", name: "Germany", flag: "🇩🇪" },
+  { code: "AT", name: "Austria", flag: "🇦🇹" },
+  { code: "CH", name: "Switzerland", flag: "🇨🇭" },
   { code: "BE", name: "Belgium", flag: "🇧🇪" },
+  { code: "NL", name: "Netherlands", flag: "🇳🇱" },
+  { code: "LU", name: "Luxembourg", flag: "🇱🇺" },
+  { code: "MC", name: "Monaco", flag: "🇲🇨" },
+
+  // Southern Europe
+  { code: "ES", name: "Spain", flag: "🇪🇸" },
+  { code: "PT", name: "Portugal", flag: "🇵🇹" },
+  { code: "IT", name: "Italy", flag: "🇮🇹" },
+  { code: "GR", name: "Greece", flag: "🇬🇷" },
+  { code: "MT", name: "Malta", flag: "🇲🇹" },
+  { code: "CY", name: "Cyprus", flag: "🇨🇾" },
+  { code: "AD", name: "Andorra", flag: "🇦🇩" },
+  { code: "SM", name: "San Marino", flag: "🇸🇲" },
+  { code: "VA", name: "Vatican City", flag: "🇻🇦" },
+
+  // Northern Europe
   { code: "SE", name: "Sweden", flag: "🇸🇪" },
   { code: "NO", name: "Norway", flag: "🇳🇴" },
   { code: "DK", name: "Denmark", flag: "🇩🇰" },
   { code: "FI", name: "Finland", flag: "🇫🇮" },
+  { code: "IS", name: "Iceland", flag: "🇮🇸" },
+
+  // Eastern Europe
   { code: "PL", name: "Poland", flag: "🇵🇱" },
-  { code: "PT", name: "Portugal", flag: "🇵🇹" },
-  { code: "IE", name: "Ireland", flag: "🇮🇪" },
+  { code: "CZ", name: "Czech Republic", flag: "🇨🇿" },
+  { code: "SK", name: "Slovakia", flag: "🇸🇰" },
+  { code: "HU", name: "Hungary", flag: "🇭🇺" },
+  { code: "RO", name: "Romania", flag: "🇷🇴" },
+  { code: "BG", name: "Bulgaria", flag: "🇧🇬" },
+  { code: "HR", name: "Croatia", flag: "🇭🇷" },
+  { code: "SI", name: "Slovenia", flag: "🇸🇮" },
+  { code: "RS", name: "Serbia", flag: "🇷🇸" },
+  { code: "BA", name: "Bosnia and Herzegovina", flag: "🇧🇦" },
+  { code: "MK", name: "North Macedonia", flag: "🇲🇰" },
+  { code: "AL", name: "Albania", flag: "🇦🇱" },
+  { code: "ME", name: "Montenegro", flag: "🇲🇪" },
+  { code: "XK", name: "Kosovo", flag: "🇽🇰" },
+
+  // Baltic States
+  { code: "EE", name: "Estonia", flag: "🇪🇪" },
+  { code: "LV", name: "Latvia", flag: "🇱🇻" },
+  { code: "LT", name: "Lithuania", flag: "🇱🇹" },
+
+  // Eastern Europe (continued)
+  { code: "UA", name: "Ukraine", flag: "🇺🇦" },
+  { code: "BY", name: "Belarus", flag: "🇧🇾" },
+  { code: "MD", name: "Moldova", flag: "🇲🇩" },
 ];
 
 const LANGUAGES = [
+  // Major Languages
   { code: "en", name: "English" },
-  { code: "de", name: "German" },
-  { code: "fr", name: "French" },
   { code: "es", name: "Spanish" },
+  { code: "pt", name: "Portuguese" },
+  { code: "fr", name: "French" },
+  { code: "de", name: "German" },
   { code: "it", name: "Italian" },
   { code: "nl", name: "Dutch" },
-  { code: "pt", name: "Portuguese" },
   { code: "pl", name: "Polish" },
+  { code: "ro", name: "Romanian" },
+  { code: "cs", name: "Czech" },
+  { code: "hu", name: "Hungarian" },
+  { code: "el", name: "Greek" },
+  { code: "bg", name: "Bulgarian" },
+  { code: "hr", name: "Croatian" },
+  { code: "sr", name: "Serbian" },
+  { code: "sk", name: "Slovak" },
+  { code: "sl", name: "Slovenian" },
+  { code: "uk", name: "Ukrainian" },
+  { code: "be", name: "Belarusian" },
+  { code: "lt", name: "Lithuanian" },
+  { code: "lv", name: "Latvian" },
+  { code: "et", name: "Estonian" },
+  { code: "sq", name: "Albanian" },
+  { code: "mk", name: "Macedonian" },
+  { code: "bs", name: "Bosnian" },
+  { code: "me", name: "Montenegrin" },
+
+  // Nordic Languages
   { code: "sv", name: "Swedish" },
   { code: "no", name: "Norwegian" },
   { code: "da", name: "Danish" },
   { code: "fi", name: "Finnish" },
+  { code: "is", name: "Icelandic" },
+
+  // Other European Languages
+  { code: "ga", name: "Irish" },
+  { code: "mt", name: "Maltese" },
+  { code: "lb", name: "Luxembourgish" },
+  { code: "ca", name: "Catalan" },
+  { code: "eu", name: "Basque" },
+  { code: "gl", name: "Galician" },
+
+  // Additional variants
+  { code: "pt-BR", name: "Portuguese (Brazil)" },
+  { code: "pt-PT", name: "Portuguese (Portugal)" },
+  { code: "es-ES", name: "Spanish (Spain)" },
+  { code: "es-MX", name: "Spanish (Mexico)" },
+  { code: "es-AR", name: "Spanish (Argentina)" },
+  { code: "en-US", name: "English (US)" },
+  { code: "en-GB", name: "English (UK)" },
+  { code: "en-CA", name: "English (Canada)" },
+  { code: "fr-FR", name: "French (France)" },
+  { code: "fr-CA", name: "French (Canada)" },
+  { code: "de-DE", name: "German (Germany)" },
+  { code: "de-AT", name: "German (Austria)" },
+  { code: "de-CH", name: "German (Switzerland)" },
+  { code: "it-IT", name: "Italian (Italy)" },
+  { code: "it-CH", name: "Italian (Switzerland)" },
+  { code: "nl-NL", name: "Dutch (Netherlands)" },
+  { code: "nl-BE", name: "Dutch (Belgium)" },
 ];
 
 const PROVIDER_LABELS: Record<string, string> = {

@@ -7,61 +7,61 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Email {
+  id       String    @id
+  runId    String    @unique
+  toEmail  String
+  sentAt   DateTime?
+  status   String
+  provider String?
+  error    String?
+  Run      Run       @relation(fields: [runId], references: [id])
+
+  @@index([status])
+}
+
+model Report {
+  id        String   @id
+  runId     String   @unique
+  pdfUrl    String
+  sha256    String?
+  createdAt DateTime @default(now())
+  Run       Run      @relation(fields: [runId], references: [id])
+}
+
 model Run {
-  id        String      @id @default(cuid())
+  id        String      @id
   keyword   String
   domain    String
-  country   String      // ISO-2
-  language  String      // BCP-47
+  country   String
+  language  String
   createdAt DateTime    @default(now())
   ipHash    String?
   cacheHit  Boolean     @default(false)
-  results   RunResult[]
-  email     Email?
-  report    Report?
+  Email     Email?
+  Report    Report?
+  RunResult RunResult[]
 
   @@index([createdAt])
   @@index([domain, keyword])
 }
 
 model RunResult {
-  id                 String   @id @default(cuid())
+  id                 String   @id
   runId              String
   provider           String
   model              String?
-  status             String   // ok | timeout | error | parse_error
+  status             String
   mentioned          Boolean?
   evidence           String?
-  firstIndex         Int?     // -1 when not found
+  firstIndex         Int?
   languageDetected   String?
   countryInterpreted String?
   latencyMs          Int?
   costUsd            Decimal? @db.Decimal(10, 6)
   rawResponse        Json?
-  run                Run      @relation(fields: [runId], references: [id])
+  Run                Run      @relation(fields: [runId], references: [id])
 
-  @@index([runId])
   @@index([provider])
-}
-
-model Email {
-  id       String   @id @default(cuid())
-  runId    String   @unique
-  toEmail  String
-  sentAt   DateTime?
-  status   String   // queued | sent | failed
-  provider String?
-  error    String?
-  run      Run      @relation(fields: [runId], references: [id])
-
-  @@index([status])
-}
-
-model Report {
-  id        String   @id @default(cuid())
-  runId     String   @unique
-  pdfUrl    String
-  sha256    String?
-  createdAt DateTime @default(now())
-  run       Run      @relation(fields: [runId], references: [id])
+  @@index([runId])
 }

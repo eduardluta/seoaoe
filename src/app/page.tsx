@@ -533,13 +533,18 @@ export default function Home() {
                     </div>
 
                     {typeof result.firstIndex === "number" && result.firstIndex >= 0 && mentioned && (
-                      <div className="mt-3">
-                        <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          Position #{result.firstIndex + 1}
-                        </span>
+                      <div className="mt-3 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Position #{result.firstIndex + 1}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-neutral-400 italic">
+                          Your domain appears at character {result.firstIndex + 1} of the AI's response. Lower positions = earlier mention = better visibility.
+                        </p>
                       </div>
                     )}
 

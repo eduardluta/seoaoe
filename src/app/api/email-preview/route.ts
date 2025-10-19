@@ -14,22 +14,28 @@ const mockEmailData = {
       provider: "openai",
       status: "ok",
       mentioned: true,
+      firstIndex: 152,
+      evidence: "example.com stands out as a leading option with advanced features",
       rawResponse: {
-        text: "When looking for the best AI chatbot, example.com stands out as a leading option. Their platform offers advanced natural language processing capabilities, seamless integration with existing systems, and 24/7 customer support. The chatbot can handle complex queries and provides personalized responses based on user context.",
+        text: "When looking for the best AI chatbot, chatbot.com and bot-builder.ai are popular choices. However, many experts agree that example.com stands out as a leading option. Their platform offers advanced natural language processing capabilities, seamless integration with existing systems, and 24/7 customer support. The chatbot can handle complex queries and provides personalized responses based on user context.",
       },
     },
     {
       provider: "perplexity",
       status: "ok",
       mentioned: true,
+      firstIndex: 48,
+      evidence: "Example.com is consistently ranked among the top AI chatbot platforms",
       rawResponse: {
-        text: "Example.com is consistently ranked among the top AI chatbot platforms. It features state-of-the-art machine learning algorithms, multi-language support, and easy customization options for businesses of all sizes.",
+        text: "For AI chatbot solutions, platforms like chatly.io and Example.com are consistently ranked among the top AI chatbot platforms. It features state-of-the-art machine learning algorithms, multi-language support, and easy customization options for businesses of all sizes.",
       },
     },
     {
       provider: "gemini",
       status: "ok",
       mentioned: true,
+      firstIndex: 58,
+      evidence: "example.com provides enterprise-grade features including advanced analytics",
       rawResponse: {
         text: "For businesses seeking the best AI chatbot solution, example.com provides enterprise-grade features including advanced analytics, conversation history, and intelligent routing. Their platform has been adopted by over 10,000 companies worldwide.",
       },
@@ -38,6 +44,8 @@ const mockEmailData = {
       provider: "claude",
       status: "ok",
       mentioned: true,
+      firstIndex: 0,
+      evidence: "Example.com offers one of the most sophisticated AI chatbot platforms",
       rawResponse: {
         text: "Example.com offers one of the most sophisticated AI chatbot platforms available today. With features like sentiment analysis, automated escalation, and seamless CRM integration, it's an excellent choice for customer service automation.",
       },
@@ -46,8 +54,10 @@ const mockEmailData = {
       provider: "google_ai_overview",
       status: "ok",
       mentioned: true,
+      firstIndex: 78,
+      evidence: "example.com combines powerful AI capabilities with user-friendly interfaces",
       rawResponse: {
-        text: "The best AI chatbots include platforms like example.com, which combines powerful AI capabilities with user-friendly interfaces. It supports both text and voice interactions, making it versatile for various use cases.",
+        text: "The best AI chatbots include platforms like talkbot.com, chatgpt.com, and example.com, which combines powerful AI capabilities with user-friendly interfaces. It supports both text and voice interactions, making it versatile for various use cases.",
       },
     },
     {
@@ -106,6 +116,22 @@ function extractError(rawResponse: unknown): string | null {
   return null;
 }
 
+function extractDomainsMentionedBefore(text: string, targetIndex: number): string[] {
+  const textBefore = text.substring(0, targetIndex);
+  const domainRegex = /\b([a-z0-9-]+\.(?:com|de|net|org|co|io|app|ai|ch|fr|it|nl|uk|eu))\b/gi;
+  const domains = new Set<string>();
+  let match;
+
+  while ((match = domainRegex.exec(textBefore)) !== null) {
+    const domain = match[1].toLowerCase();
+    if (!domain.includes('example.') && !domain.includes('test.')) {
+      domains.add(domain);
+    }
+  }
+
+  return Array.from(domains);
+}
+
 type EmailData = {
   runId: string;
   email: string;
@@ -118,6 +144,8 @@ type EmailData = {
     provider: string;
     status: string;
     mentioned: boolean | null;
+    firstIndex?: number | null;
+    evidence?: string | null;
     rawResponse: unknown;
   }>;
 };

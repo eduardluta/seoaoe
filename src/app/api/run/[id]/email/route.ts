@@ -51,6 +51,8 @@ export async function PATCH(request: Request, context: Params) {
             provider: true,
             status: true,
             mentioned: true,
+            firstIndex: true,
+            evidence: true,
             rawResponse: true,
           },
         },

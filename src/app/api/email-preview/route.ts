@@ -384,6 +384,44 @@ function generateEmailHTML(data: EmailData): string {
       font-style: italic;
       margin-top: 8px;
     }
+    .position-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #10b981;
+      color: white;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-top: 12px;
+    }
+    .position-explanation {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 8px;
+      line-height: 1.5;
+    }
+    .competitors-box {
+      background: #fffbeb;
+      border: 1px solid #fbbf24;
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 10px;
+    }
+    .competitors-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #b45309;
+      margin-bottom: 6px;
+    }
+    .competitors-list {
+      font-size: 12px;
+      color: #92400e;
+      line-height: 1.4;
+    }
     .cta-section {
       text-align: center;
       padding: 30px;
@@ -493,6 +531,20 @@ function generateEmailHTML(data: EmailData): string {
 
           const answer = extractAnswer(result.rawResponse);
           const error = extractError(result.rawResponse);
+          const hasPosition = typeof result.firstIndex === 'number' && result.firstIndex >= 0;
+
+          let competitorsHtml = '';
+          if (isMentioned && hasPosition && answer) {
+            const competitors = extractDomainsMentionedBefore(answer, result.firstIndex!);
+            if (competitors.length > 0) {
+              competitorsHtml = `
+                <div class="competitors-box">
+                  <div class="competitors-title">${competitors.length} ${competitors.length === 1 ? 'competitor' : 'competitors'} mentioned before you</div>
+                  <div class="competitors-list">${escapeHtml(competitors.join(', '))}</div>
+                </div>
+              `;
+            }
+          }
 
           return `
           <div class="provider-card ${cardClass}">
@@ -500,8 +552,17 @@ function generateEmailHTML(data: EmailData): string {
               <span class="provider-name">${escapeHtml(providerName)}</span>
               <span class="status-badge ${statusClass}">${statusText}</span>
             </div>
-            ${isMentioned && answer ? `
-              <div class="provider-snippet">${escapeHtml(answer.substring(0, 200))}${answer.length > 200 ? '...' : ''}</div>
+            ${isMentioned && hasPosition ? `
+              <div class="position-badge">
+                ✓ Position #${result.firstIndex! + 1}
+              </div>
+              <div class="position-explanation">
+                Your domain appears at character ${result.firstIndex! + 1} of the AI's response. Lower positions = earlier mention = better visibility.
+              </div>
+            ` : ''}
+            ${competitorsHtml}
+            ${isMentioned && (result.evidence || answer) ? `
+              <div class="provider-snippet">${escapeHtml((result.evidence || answer || '').substring(0, 250))}${(result.evidence || answer || '').length > 250 ? '...' : ''}</div>
             ` : isError && error ? `
               <div class="provider-error">Error: ${escapeHtml(error)}</div>
             ` : ''}

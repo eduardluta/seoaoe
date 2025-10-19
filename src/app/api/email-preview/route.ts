@@ -204,6 +204,7 @@ function generateEmailHTML(data: EmailData): string {
     }
     .email-container {
       max-width: 600px;
+      width: 100%;
       margin: 0 auto;
       background: #ffffff;
       border-radius: 12px;
@@ -374,6 +375,8 @@ function generateEmailHTML(data: EmailData): string {
       margin-top: 8px;
       max-height: 150px;
       overflow: hidden;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
     }
     .provider-card.mentioned .provider-snippet {
       border-left-color: #10b981;
@@ -401,6 +404,7 @@ function generateEmailHTML(data: EmailData): string {
       color: #6b7280;
       margin-top: 8px;
       line-height: 1.5;
+      word-wrap: break-word;
     }
     .competitors-box {
       background: #fffbeb;
@@ -421,6 +425,8 @@ function generateEmailHTML(data: EmailData): string {
       font-size: 12px;
       color: #92400e;
       line-height: 1.4;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
     }
     .cta-section {
       text-align: center;
@@ -460,9 +466,18 @@ function generateEmailHTML(data: EmailData): string {
       background: #e5e7eb;
       margin: 30px 0;
     }
-    @media only screen and (max-width: 600px) {
-      .summary-grid {
-        grid-template-columns: 1fr;
+    @media only screen and (max-width: 1024px) {
+      body {
+        padding: 10px;
+      }
+      .email-container {
+        max-width: 100%;
+      }
+      .header h1 {
+        font-size: 24px;
+      }
+      .header p {
+        font-size: 14px;
       }
       .content {
         padding: 30px 20px;
@@ -470,12 +485,127 @@ function generateEmailHTML(data: EmailData): string {
       .header {
         padding: 30px 20px;
       }
+      .score-container {
+        padding: 24px;
+      }
       .score-circle {
         width: 120px;
         height: 120px;
       }
       .score-number {
-        font-size: 40px;
+        font-size: 42px;
+      }
+      .score-label {
+        font-size: 12px;
+      }
+      .score-message {
+        font-size: 14px;
+      }
+      .summary-card {
+        padding: 16px;
+      }
+      .summary-card-value {
+        font-size: 22px;
+      }
+      .summary-card-label {
+        font-size: 12px;
+      }
+      .section-title {
+        font-size: 18px;
+        margin: 30px 0 16px;
+      }
+      .provider-card {
+        padding: 14px;
+      }
+      .provider-name {
+        font-size: 14px;
+      }
+      .status-badge {
+        font-size: 11px;
+        padding: 5px 10px;
+      }
+      .position-badge {
+        font-size: 12px;
+        padding: 6px 12px;
+      }
+      .position-explanation {
+        font-size: 11px;
+      }
+      .competitors-title {
+        font-size: 10px;
+      }
+      .competitors-list {
+        font-size: 11px;
+      }
+      .provider-snippet {
+        font-size: 13px;
+        padding: 10px;
+      }
+      .cta-section {
+        padding: 24px 20px;
+      }
+      .cta-button {
+        padding: 12px 28px;
+        font-size: 15px;
+      }
+    }
+    @media only screen and (max-width: 768px) {
+      .summary-grid {
+        gap: 12px;
+      }
+      .greeting {
+        font-size: 15px;
+      }
+      .provider-header {
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+    }
+    @media only screen and (max-width: 600px) {
+      body {
+        padding: 5px;
+      }
+      .summary-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+      .content {
+        padding: 24px 16px;
+      }
+      .header {
+        padding: 24px 16px;
+      }
+      .header h1 {
+        font-size: 22px;
+      }
+      .header p {
+        font-size: 13px;
+      }
+      .score-container {
+        padding: 20px;
+      }
+      .score-circle {
+        width: 100px;
+        height: 100px;
+      }
+      .score-number {
+        font-size: 36px;
+      }
+      .greeting {
+        font-size: 14px;
+      }
+      .section-title {
+        font-size: 16px;
+      }
+      .cta-section h3 {
+        font-size: 16px !important;
+      }
+      .cta-section p {
+        font-size: 13px !important;
+      }
+      .footer {
+        padding: 24px 16px;
+        font-size: 12px;
       }
     }
   </style>

@@ -340,7 +340,7 @@ function generateEmailHTML(data: EmailData): string {
     }
     .competitors-box {
       background: #fffbeb;
-      border: 1px solid: #fbbf24;
+      border: 1px solid #fbbf24;
       border-radius: 8px;
       padding: 12px;
       margin-top: 10px;

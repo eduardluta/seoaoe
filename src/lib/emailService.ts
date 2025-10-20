@@ -730,6 +730,7 @@ export async function sendReportEmail(data: EmailData): Promise<void> {
     await prisma.email.upsert({
       where: { runId: data.runId },
       create: {
+        id: `email_${data.runId}`,
         runId: data.runId,
         toEmail: data.email,
         status: "failed",
@@ -750,6 +751,7 @@ export async function sendReportEmail(data: EmailData): Promise<void> {
     await prisma.email.upsert({
       where: { runId: data.runId },
       create: {
+        id: `email_${data.runId}`,
         runId: data.runId,
         toEmail: data.email,
         status: "failed",
@@ -777,6 +779,7 @@ export async function sendReportEmail(data: EmailData): Promise<void> {
     await prisma.email.upsert({
       where: { runId: data.runId },
       create: {
+        id: `email_${data.runId}`,
         runId: data.runId,
         toEmail: data.email,
         status: "sent",
@@ -798,6 +801,7 @@ export async function sendReportEmail(data: EmailData): Promise<void> {
     await prisma.email.upsert({
       where: { runId: data.runId },
       create: {
+        id: `email_${data.runId}`,
         runId: data.runId,
         toEmail: data.email,
         status: "failed",

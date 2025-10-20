@@ -49,21 +49,25 @@ export async function POST(req: Request) {
 
     if (cachedResults) {
       // Cache hit: create Run and populate with cached results
+      const runId = `run_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
       const runRecord = await prisma.run.create({
         data: {
+          id: runId,
           keyword: keyword.trim(),
           domain: domain.toLowerCase().trim(),
           country: country.toUpperCase(),
           language: language.trim(),
-          email: email ? { create: { id: `email_${Date.now()}`, toEmail: email, status: "queued" } } : undefined,
+          email: email ? { create: { id: `email_${runId}`, toEmail: email, status: "queued" } } : undefined,
         },
         select: { id: true, createdAt: true },
       });
 
       // Insert cached results into database sequentially
       for (const cachedResult of cachedResults) {
+        const resultId = `result_${runRecord.id}_${cachedResult.provider}_${Date.now()}`;
         await prisma.runResult.create({
           data: {
+            id: resultId,
             runId: runRecord.id,
             provider: cachedResult.provider,
             model: cachedResult.model,
@@ -91,13 +95,15 @@ export async function POST(req: Request) {
     }
 
     // Cache miss: create Run and execute providers
+    const runId = `run_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
     const runRecord = await prisma.run.create({
       data: {
+        id: runId,
         keyword: keyword.trim(),
         domain: domain.toLowerCase().trim(),
         country: country.toUpperCase(),
         language: language.trim(),
-        email: email ? { create: { toEmail: email, status: "queued" } } : undefined,
+        email: email ? { create: { id: `email_${runId}`, toEmail: email, status: "queued" } } : undefined,
       },
       select: { id: true, createdAt: true },
     });
@@ -136,8 +142,10 @@ export async function POST(req: Request) {
 
     // Save results to database sequentially to avoid connection pool exhaustion
     for (const result of providerResults) {
+      const resultId = `result_${runRecord.id}_${result.provider}_${Date.now()}`;
       await prisma.runResult.create({
         data: {
+          id: resultId,
           runId: runRecord.id,
           provider: result.provider,
           model: result.model,

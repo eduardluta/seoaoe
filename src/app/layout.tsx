@@ -16,6 +16,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "SEO-AOE | AI Visibility Checker for Google & ChatGPT Rankings",
   description: "Check how your brand ranks across Google, ChatGPT, and other AI answer engines with SEO-AOE — the AI visibility tracker for the next generation of search.",
+  keywords: "AI SEO, ChatGPT rankings, Google AI, AI visibility, answer engines",
 };
 
 export default function RootLayout({

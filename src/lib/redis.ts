@@ -1,34 +1,52 @@
 import Redis from "ioredis";
 
-// Initialize Redis client
-// If REDIS_URL is not provided, Redis will default to localhost:6379
-const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
-  // Retry strategy: exponential backoff
-  retryStrategy(times) {
-    const delay = Math.min(times * 50, 2000);
-    return delay;
-  },
-  // Connection timeout
-  connectTimeout: 10000,
-  // Max retry attempts
-  maxRetriesPerRequest: 3,
-  // Enable offline queue
-  enableOfflineQueue: true,
-});
+// Lazy Redis client initialization
+// Only create the connection when it's actually used at runtime
+let redis: Redis | null = null;
 
-redis.on("error", (err) => {
-  console.error("Redis Client Error:", err);
-});
+function getRedisClient(): Redis {
+  if (!redis) {
+    // Initialize Redis client
+    // If REDIS_URL is not provided, Redis will default to localhost:6379
+    redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
+      // Retry strategy: exponential backoff
+      retryStrategy(times) {
+        const delay = Math.min(times * 50, 2000);
+        return delay;
+      },
+      // Connection timeout
+      connectTimeout: 10000,
+      // Max retry attempts
+      maxRetriesPerRequest: 3,
+      // Enable offline queue
+      enableOfflineQueue: true,
+      // Prevent connection during build
+      lazyConnect: true,
+    });
 
-redis.on("connect", () => {
-  console.log("Redis Client Connected");
-});
+    redis.on("error", (err) => {
+      console.error("Redis Client Error:", err);
+    });
 
-redis.on("ready", () => {
-  console.log("Redis Client Ready");
-});
+    redis.on("connect", () => {
+      console.log("Redis Client Connected");
+    });
 
-export { redis };
+    redis.on("ready", () => {
+      console.log("Redis Client Ready");
+    });
+
+    // Only connect if not in build mode
+    if (process.env.NEXT_PHASE !== 'phase-production-build') {
+      redis.connect().catch((err) => {
+        console.error("Failed to connect to Redis:", err);
+      });
+    }
+  }
+  return redis;
+}
+
+export { getRedisClient };
 
 /**
  * Generate a cache key for a run request
@@ -54,7 +72,8 @@ export function generateCacheKey(
  */
 export async function getCachedResults(cacheKey: string): Promise<unknown> {
   try {
-    const cached = await redis.get(cacheKey);
+    const client = getRedisClient();
+    const cached = await client.get(cacheKey);
     if (!cached) {
       return null;
     }
@@ -75,7 +94,8 @@ export async function setCachedResults(
   ttl: number = 86400
 ): Promise<void> {
   try {
-    await redis.setex(cacheKey, ttl, JSON.stringify(results));
+    const client = getRedisClient();
+    await client.setex(cacheKey, ttl, JSON.stringify(results));
   } catch (error) {
     console.error("Error setting cached results:", error);
   }

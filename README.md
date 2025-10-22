@@ -285,3 +285,6 @@ The application uses Redis to cache provider results for 24 hours based on the c
 - [ ] Historical tracking and analytics
 - [ ] Custom model selection per provider
 - [ ] Webhook support for async results
+
+## License
+MIT

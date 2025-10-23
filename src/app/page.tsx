@@ -494,304 +494,315 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-[100svh] bg-white text-slate-900 dark:bg-neutral-950 dark:text-neutral-50">
-      <main className="mx-auto flex min-h-[100svh] w-full max-w-3xl flex-col items-center justify-center px-6 py-12">
-        {/* Header */}
-        <div className="mb-12 text-center">
-          <h1 className="text-4xl font-bold tracking-tight md:text-6xl mb-4">
-            AI SEO Ranking
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-neutral-400 max-w-xl mx-auto">
-            See how your brand ranks across Google & AI answer engines like ChatGPT & Co.
-          </p>
-        </div>
-
-        {/* Form */}
-        <div className="w-full max-w-2xl">
-          <form onSubmit={onSubmit} className="space-y-6">
-            {/* Keyword */}
-            <input
-              id="keyword"
-              name="keyword"
-              autoComplete="off"
-              required
-              placeholder="Keyword (e.g., dating app)"
-              className="h-14 w-full rounded-lg border border-slate-200 bg-white px-4 text-base text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:placeholder:text-neutral-500 dark:focus:border-neutral-600 dark:focus:ring-neutral-800"
-              value={keyword}
-              onChange={(event) => setKeyword(event.target.value)}
-            />
-
-            {/* Domain */}
-            <input
-              id="domain"
-              name="domain"
-              type="text"
-              required
-              placeholder="Domain (e.g., example.com)"
-              className="h-14 w-full rounded-lg border border-slate-200 bg-white px-4 text-base text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:placeholder:text-neutral-500 dark:focus:border-neutral-600 dark:focus:ring-neutral-800"
-              value={domain}
-              onChange={(event) => setDomain(event.target.value)}
-            />
-
-            {/* Country & Language */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <select
-                id="country"
-                name="country"
-                required
-                className="h-14 w-full appearance-none rounded-lg border border-slate-200 bg-white px-4 text-base text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-neutral-600 dark:focus:ring-neutral-800"
-                value={country}
-                onChange={(event) => setCountry(event.target.value)}
-              >
-                {COUNTRIES.map((item) => (
-                  <option key={item.code} value={item.code}>
-                    {item.flag} {item.name}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                id="language"
-                name="language"
-                required
-                className="h-14 w-full appearance-none rounded-lg border border-slate-200 bg-white px-4 text-base text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-neutral-600 dark:focus:ring-neutral-800"
-                value={language}
-                onChange={(event) => setLanguage(event.target.value)}
-              >
-                {LANGUAGES.map((item) => (
-                  <option key={item.code} value={item.code}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="h-14 w-full rounded-lg bg-slate-900 text-base font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-neutral-950 dark:hover:bg-neutral-100"
-              aria-busy={loading}
-            >
-              {loading ? "Checking..." : "Check Visibility"}
-            </button>
-
-            {error && (
-              <p className="text-sm text-rose-500 dark:text-rose-400" role="alert">
-                {error}
-              </p>
-            )}
-          </form>
-        </div>
-
-        {/* Loading State */}
-        {loading && (
-          <div className="mt-12 w-full max-w-2xl">
-            <div className="rounded-xl border border-slate-200 bg-white p-8 dark:border-neutral-700 dark:bg-neutral-900">
-              {/* Spinner */}
-              <div className="flex flex-col items-center justify-center space-y-6">
-                <div className="relative">
-                  <div className="h-16 w-16 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900 dark:border-neutral-700 dark:border-t-neutral-50"></div>
-                  <div className="absolute inset-0 h-16 w-16 animate-pulse rounded-full border-4 border-slate-100 dark:border-neutral-800 opacity-25"></div>
-                </div>
-
-                {/* Status Message */}
-                <div className="text-center">
-                  <p className="text-lg font-semibold text-slate-900 dark:text-neutral-50 mb-2">
-                    {statusMessage || "Processing your request..."}
-                  </p>
-                  <p className="text-sm text-slate-500 dark:text-neutral-400">
-                    This may take up to 30 seconds
-                  </p>
-                </div>
-
-                {/* Progress Info */}
-                {processedCount > 0 && (
-                  <div className="w-full">
-                    <div className="flex justify-between text-sm text-slate-600 dark:text-neutral-400 mb-2">
-                      <span>Progress</span>
-                      <span>{processedCount} of {expectedProviders} providers</span>
-                    </div>
-                    <div className="w-full bg-slate-200 dark:bg-neutral-700 rounded-full h-2">
-                      <div
-                        className="bg-slate-900 dark:bg-neutral-50 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${(processedCount / expectedProviders) * 100}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+    <div className="min-h-[100svh]">
+      {/* Black upper section with hero and form */}
+      <div className="-mb-48 w-full bg-gradient-to-br from-neutral-950 to-black pb-48 pt-28 text-white sm:pt-32">
+        <div className="mx-auto w-full max-w-3xl px-6">
+          {/* Header */}
+          <div className="mb-12 text-center">
+            <p className="text-sm text-amber-500 font-semibold uppercase tracking-wider mb-4">
+              AI Search Analytics
+            </p>
+            <h1 className="text-5xl font-bold tracking-tight md:text-7xl mb-4">
+              See How AI Ranks Your Brand
+            </h1>
+            <p className="text-base text-neutral-300 max-w-xl mx-auto">
+              Check how your brand ranks across Google AI & LLM&apos;s like ChatGPT & Co.
+            </p>
           </div>
-        )}
 
-        {/* Status Message when not loading */}
-        {!loading && statusMessage && (
-          <p className="mt-6 text-sm text-slate-500 dark:text-neutral-400">{statusMessage}</p>
-        )}
+          {/* Form in white card */}
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl mx-auto">
+            <form onSubmit={onSubmit} className="space-y-4">
+              {/* Keyword */}
+              <input
+                id="keyword"
+                name="keyword"
+                autoComplete="off"
+                required
+                placeholder="Keyword (e.g., dating app)"
+                className="h-14 w-full rounded-lg border-2 border-amber-500 bg-white px-4 text-base text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-amber-600 focus:ring-2 focus:ring-amber-200"
+                value={keyword}
+                onChange={(event) => setKeyword(event.target.value)}
+              />
 
-        {processedCount > 0 && !loading && (
-          <section className="mt-12 w-full max-w-2xl">
-            {/* Summary */}
-            <div className="mb-8 text-center">
-              <p className="text-3xl font-bold text-slate-900 dark:text-neutral-50">
-                {mentionCount}/{expectedProviders}
-              </p>
-              <p className="mt-1 text-sm text-slate-500 dark:text-neutral-400">
-                Providers mentioned your domain
-              </p>
-            </div>
+              {/* Domain */}
+              <input
+                id="domain"
+                name="domain"
+                type="text"
+                required
+                placeholder="Domain (e.g., example.com)"
+                className="h-14 w-full rounded-lg border-2 border-amber-500 bg-white px-4 text-base text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-amber-600 focus:ring-2 focus:ring-amber-200"
+                value={domain}
+                onChange={(event) => setDomain(event.target.value)}
+              />
 
-            {/* Results Grid */}
-            <div className="space-y-4">
-              {checkResults.map((result, index) => {
-                const providerLabel = PROVIDER_LABELS[result.provider] ?? result.provider;
-                const status = result.status.toLowerCase();
-                const isSuccess = status === "ok";
-                const mentioned = Boolean(result.mentioned);
-                const providerKey = `${result.provider}-${result.model ?? index}`;
-                const isExpanded = Boolean(expandedProviders[providerKey]);
+              {/* Country & Language */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <select
+                  id="country"
+                  name="country"
+                  required
+                  className="h-14 w-full appearance-none rounded-lg border-2 border-amber-500 bg-white px-4 text-base text-slate-900 outline-none transition focus:border-amber-600 focus:ring-2 focus:ring-amber-200"
+                  value={country}
+                  onChange={(event) => setCountry(event.target.value)}
+                >
+                  {COUNTRIES.map((item) => (
+                    <option key={item.code} value={item.code}>
+                      {item.flag} {item.name}
+                    </option>
+                  ))}
+                </select>
 
-                const statusBadge =
-                  isSuccess && mentioned
-                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-                    : isSuccess
-                    ? "bg-slate-100 text-slate-600 dark:bg-neutral-800 dark:text-neutral-300"
-                    : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300";
+                <select
+                  id="language"
+                  name="language"
+                  required
+                  className="h-14 w-full appearance-none rounded-lg border-2 border-amber-500 bg-white px-4 text-base text-slate-900 outline-none transition focus:border-amber-600 focus:ring-2 focus:ring-amber-200"
+                  value={language}
+                  onChange={(event) => setLanguage(event.target.value)}
+                >
+                  {LANGUAGES.map((item) => (
+                    <option key={item.code} value={item.code}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-                return (
-                  <div
-                    key={providerKey}
-                    className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 dark:border-neutral-800 dark:bg-neutral-900"
-                  >
-                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900 dark:text-neutral-50">
-                          {providerLabel}
-                        </p>
-                        <p className="text-xs text-slate-500 dark:text-neutral-400">
-                          {isSuccess
-                            ? mentioned
-                              ? `${domain} was mentioned in the response.`
-                              : `${domain} was not mentioned.`
-                            : "Provider failed to return a response."}
-                        </p>
-                      </div>
-                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${statusBadge}`}>
-                        {isSuccess ? (mentioned ? "Mentioned" : "Not mentioned") : result.status}
-                      </span>
-                    </div>
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="h-14 w-full rounded-lg bg-amber-500 text-base font-semibold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-busy={loading}
+              >
+                {loading ? "Checking..." : "Check Visibility"}
+              </button>
 
-                    {typeof result.firstIndex === "number" && result.firstIndex >= 0 && mentioned && (
-                      <div className="mt-3 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            Position #{result.firstIndex + 1}
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-600 dark:text-neutral-300">
-                          Your domain appears at character {result.firstIndex + 1} of the AI&apos;s response. Lower positions = earlier mention = better visibility.
-                        </p>
-                        {result.rawText && (() => {
-                          const otherDomains = extractDomainsMentionedBefore(result.rawText, result.firstIndex);
-                          return otherDomains.length > 0 ? (
-                            <div className="mt-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-2">
-                              <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400 mb-1">
-                                {otherDomains.length} {otherDomains.length === 1 ? 'competitor' : 'competitors'} mentioned before you
-                              </p>
-                              <p className="text-xs text-amber-800 dark:text-amber-200">
-                                {otherDomains.join(', ')}
-                              </p>
-                            </div>
-                          ) : null;
-                        })()}
-                      </div>
-                    )}
-
-                    {mentioned && result.evidence && (
-                      <div className="mt-3 rounded-xl bg-slate-50 p-3 text-xs italic text-slate-600 dark:bg-neutral-800 dark:text-neutral-300">
-                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-neutral-500">
-                          Snippet
-                        </p>
-                        <p className="mt-1">&ldquo;{result.evidence}&rdquo;</p>
-                      </div>
-                    )}
-
-                    {result.rawText && (
-                      <div className="mt-3">
-                        <button
-                          type="button"
-                          className="text-xs font-medium text-slate-600 underline decoration-dotted underline-offset-4 transition hover:text-slate-900 dark:text-neutral-300 dark:hover:text-neutral-100"
-                          onClick={() =>
-                            setExpandedProviders((prev) => ({
-                              ...prev,
-                              [providerKey]: !prev[providerKey],
-                            }))
-                          }
-                        >
-                          {isExpanded ? "Hide full response" : "View full response"}
-                        </button>
-                        {isExpanded && (
-                          <div className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-700 shadow-inner dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-200">
-                            <pre className="whitespace-pre-wrap break-words font-sans text-[12px]">
-                              {result.rawText}
-                            </pre>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {!isSuccess && (
-                      <p className="mt-3 text-xs text-rose-500 dark:text-rose-300">
-                        We couldn&apos;t fetch this provider&apos;s answer. Try again later or open the admin dashboard for logs.
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Email Section - appears after results */}
-            {!loading && !emailSaved && (
-              <div className="mt-8 p-6 bg-slate-50 dark:bg-neutral-800 rounded-lg">
-                <h3 className="text-lg font-semibold mb-3">Get Your Report via Email</h3>
-                <p className="text-sm text-slate-600 dark:text-neutral-400 mb-4">
-                  Enter your email to instantly receive a PDF report with detailed analysis
+              {error && (
+                <p className="text-sm text-rose-500" role="alert">
+                  {error}
                 </p>
-                <div className="flex gap-3">
-                  <input
-                    type="email"
-                    placeholder="your@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={emailSaving}
-                    className="flex-1 h-12 rounded-lg border border-slate-200 bg-white px-4 text-base text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:placeholder:text-neutral-500 dark:focus:border-neutral-600 dark:focus:ring-neutral-800"
-                  />
-                  <button
-                    onClick={handleSaveEmail}
-                    disabled={emailSaving || !email.trim()}
-                    className="h-12 px-6 rounded-lg bg-slate-900 text-white font-semibold transition hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-white dark:text-neutral-950"
-                  >
-                    {emailSaving ? "Sending..." : "Send Report"}
-                  </button>
+              )}
+            </form>
+          </div>
+        </div>
+      </div>
+
+      {/* Lower section for results */}
+      <div className="w-full bg-gradient-to-br from-neutral-950 to-black pb-16 pt-36">
+        <div className="mx-auto w-full max-w-3xl px-6">
+
+          {/* Loading State */}
+          {loading && (
+            <div className="w-full max-w-2xl mx-auto">
+              <div className="rounded-xl border border-slate-200 bg-white p-8">
+                {/* Spinner */}
+                <div className="flex flex-col items-center justify-center space-y-6">
+                  <div className="relative">
+                    <div className="h-16 w-16 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900"></div>
+                    <div className="absolute inset-0 h-16 w-16 animate-pulse rounded-full border-4 border-slate-100 opacity-25"></div>
+                  </div>
+
+                  {/* Status Message */}
+                  <div className="text-center">
+                    <p className="text-lg font-semibold text-slate-900 mb-2">
+                      {statusMessage || "Processing your request..."}
+                    </p>
+                    <p className="text-sm text-slate-500">
+                      This may take up to 30 seconds
+                    </p>
+                  </div>
+
+                  {/* Progress Info */}
+                  {processedCount > 0 && (
+                    <div className="w-full">
+                      <div className="flex justify-between text-sm text-slate-600 mb-2">
+                        <span>Progress</span>
+                        <span>{processedCount} of {expectedProviders} providers</span>
+                      </div>
+                      <div className="w-full bg-slate-200 rounded-full h-2">
+                        <div
+                          className="bg-slate-900 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${(processedCount / expectedProviders) * 100}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
-            {emailSaved && (
-              <div className="mt-8 p-6 bg-green-50 dark:bg-green-900/20 rounded-lg text-center">
-                <p className="text-green-800 dark:text-green-300 font-medium">
-                  ✓ Report sent! Check your inbox for the PDF report.
+          {/* Status Message when not loading */}
+          {!loading && statusMessage && (
+            <p className="mt-6 text-sm text-slate-500">{statusMessage}</p>
+          )}
+
+          {processedCount > 0 && !loading && (
+            <section className="w-full max-w-2xl mx-auto">
+              {/* Summary */}
+              <div className="mb-8 text-center">
+                <p className="text-3xl font-bold text-slate-900">
+                  {mentionCount}/{expectedProviders}
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  Providers mentioned your domain
                 </p>
               </div>
-            )}
 
-          </section>
-        )}
-      </main>
+              {/* Results Grid */}
+              <div className="space-y-4">
+                {checkResults.map((result, index) => {
+                  const providerLabel = PROVIDER_LABELS[result.provider] ?? result.provider;
+                  const status = result.status.toLowerCase();
+                  const isSuccess = status === "ok";
+                  const mentioned = Boolean(result.mentioned);
+                  const providerKey = `${result.provider}-${result.model ?? index}`;
+                  const isExpanded = Boolean(expandedProviders[providerKey]);
+
+                  const statusBadge =
+                    isSuccess && mentioned
+                      ? "bg-emerald-100 text-emerald-700"
+                      : isSuccess
+                      ? "bg-slate-100 text-slate-600"
+                      : "bg-yellow-100 text-yellow-700";
+
+                  return (
+                    <div
+                      key={providerKey}
+                      className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300"
+                    >
+                      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">
+                            {providerLabel}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {isSuccess
+                              ? mentioned
+                                ? `${domain} was mentioned in the response.`
+                                : `${domain} was not mentioned.`
+                              : "Provider failed to return a response."}
+                          </p>
+                        </div>
+                        <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${statusBadge}`}>
+                          {isSuccess ? (mentioned ? "Mentioned" : "Not mentioned") : result.status}
+                        </span>
+                      </div>
+
+                      {typeof result.firstIndex === "number" && result.firstIndex >= 0 && mentioned && (
+                        <div className="mt-3 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              Position #{result.firstIndex + 1}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-600">
+                            Your domain appears at character {result.firstIndex + 1} of the AI&apos;s response. Lower positions = earlier mention = better visibility.
+                          </p>
+                          {result.rawText && (() => {
+                            const otherDomains = extractDomainsMentionedBefore(result.rawText, result.firstIndex);
+                            return otherDomains.length > 0 ? (
+                              <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 p-2">
+                                <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 mb-1">
+                                  {otherDomains.length} {otherDomains.length === 1 ? 'competitor' : 'competitors'} mentioned before you
+                                </p>
+                                <p className="text-xs text-amber-800">
+                                  {otherDomains.join(', ')}
+                                </p>
+                              </div>
+                            ) : null;
+                          })()}
+                        </div>
+                      )}
+
+                      {mentioned && result.evidence && (
+                        <div className="mt-3 rounded-xl bg-slate-50 p-3 text-xs italic text-slate-600">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                            Snippet
+                          </p>
+                          <p className="mt-1">&ldquo;{result.evidence}&rdquo;</p>
+                        </div>
+                      )}
+
+                      {result.rawText && (
+                        <div className="mt-3">
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-slate-600 underline decoration-dotted underline-offset-4 transition hover:text-slate-900"
+                            onClick={() =>
+                              setExpandedProviders((prev) => ({
+                                ...prev,
+                                [providerKey]: !prev[providerKey],
+                              }))
+                            }
+                          >
+                            {isExpanded ? "Hide full response" : "View full response"}
+                          </button>
+                          {isExpanded && (
+                            <div className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-700 shadow-inner">
+                              <pre className="whitespace-pre-wrap break-words font-sans text-[12px]">
+                                {result.rawText}
+                              </pre>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {!isSuccess && (
+                        <p className="mt-3 text-xs text-rose-500">
+                          We couldn&apos;t fetch this provider&apos;s answer. Try again later or open the admin dashboard for logs.
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Email Section - appears after results */}
+              {!loading && !emailSaved && (
+                <div className="mt-8 p-6 bg-white rounded-lg border border-slate-200">
+                  <h3 className="text-lg font-semibold mb-3">Get Your Report via Email</h3>
+                  <p className="text-sm text-slate-600 mb-4">
+                    Enter your email to instantly receive a PDF report with detailed analysis
+                  </p>
+                  <div className="flex gap-3">
+                    <input
+                      type="email"
+                      placeholder="your@email.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={emailSaving}
+                      className="flex-1 h-12 rounded-lg border border-slate-200 bg-white px-4 text-base text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+                    />
+                    <button
+                      onClick={handleSaveEmail}
+                      disabled={emailSaving || !email.trim()}
+                      className="h-12 px-6 rounded-lg bg-slate-900 text-white font-semibold transition hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {emailSaving ? "Sending..." : "Send Report"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {emailSaved && (
+                <div className="mt-8 p-6 bg-green-50 rounded-lg text-center">
+                  <p className="text-green-800 font-medium">
+                    ✓ Report sent! Check your inbox for the PDF report.
+                  </p>
+                </div>
+              )}
+            </section>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

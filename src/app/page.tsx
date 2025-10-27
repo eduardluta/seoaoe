@@ -251,6 +251,68 @@ function extractDomainsMentionedBefore(text: string, targetIndex: number): strin
   return Array.from(domains);
 }
 
+function extractContextAroundMention(text: string, mentionIndex: number, domain: string): string {
+  // Clean up formatting artifacts
+  text = text.replace(/===\s*AI Overview\s*===/gi, '').replace(/===+/g, '').trim();
+
+  // Look for the start of the list item or paragraph
+  let contextStart = mentionIndex;
+  for (let i = mentionIndex - 1; i >= 0; i--) {
+    if (text[i] === '\n' && i > 0) {
+      const nextChar = text[i + 1];
+      if (nextChar === '-' || nextChar === '*' || /\d/.test(nextChar)) {
+        contextStart = i + 1;
+        break;
+      }
+    }
+    if (i > 0 && text[i] === '\n' && text[i - 1] === '\n') {
+      contextStart = i + 1;
+      break;
+    }
+    if (mentionIndex - i > 300) {
+      contextStart = i;
+      break;
+    }
+    if (i === 0) contextStart = 0;
+  }
+
+  // Look forward for end of context
+  let contextEnd = mentionIndex + domain.length;
+  for (let i = contextEnd; i < text.length; i++) {
+    if (text[i] === '.' || text[i] === '!' || text[i] === '?') {
+      if (i + 1 >= text.length || text[i + 1] === '\n' || text[i + 1] === ' ') {
+        contextEnd = i + 1;
+        break;
+      }
+    }
+    if (text[i] === '\n' && i + 1 < text.length) {
+      const nextChar = text[i + 1];
+      if (nextChar === '-' || nextChar === '*' || /\d/.test(nextChar)) {
+        contextEnd = i;
+        break;
+      }
+    }
+    if (i - mentionIndex > 400) {
+      contextEnd = i;
+      break;
+    }
+  }
+
+  // Extract and clean the context
+  let contextText = text.substring(contextStart, contextEnd).trim();
+  contextText = contextText.replace(/^[-*\d.)\s]+/, '').replace(/^\*\*/, '');
+
+  // If still too short or looks incomplete, use a fixed window
+  if (contextText.length < 50 || !contextText.includes('.')) {
+    contextText = text.substring(
+      Math.max(0, mentionIndex - 100),
+      Math.min(text.length, mentionIndex + 250)
+    ).trim().replace(/^[-*\d.)\s]+/, '');
+  }
+
+  return contextText;
+}
+
 function parseResults(raw: unknown): RunResult[] {
   if (!Array.isArray(raw)) {
     return [];
@@ -592,7 +654,7 @@ export default function Home() {
       </div>
 
       {/* Lower section for results */}
-      <div className="w-full bg-gradient-to-br from-neutral-950 to-black pb-16 pt-36">
+      <div className="w-full bg-gradient-to-br from-neutral-950 to-black pb-16 pt-12">
         <div className="mx-auto w-full max-w-3xl px-6">
 
           {/* Loading State */}
@@ -638,17 +700,17 @@ export default function Home() {
 
           {/* Status Message when not loading */}
           {!loading && statusMessage && (
-            <p className="mt-6 text-sm text-slate-500">{statusMessage}</p>
+            <p className="mb-6 text-center text-base text-neutral-400">{statusMessage}</p>
           )}
 
           {processedCount > 0 && !loading && (
             <section className="w-full max-w-2xl mx-auto">
               {/* Summary */}
               <div className="mb-8 text-center">
-                <p className="text-3xl font-bold text-slate-900">
+                <p className="text-5xl font-bold text-white mb-3">
                   {mentionCount}/{expectedProviders}
                 </p>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="text-base text-neutral-300">
                   Providers mentioned your domain
                 </p>
               </div>
@@ -676,33 +738,34 @@ export default function Home() {
                       className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300"
                     >
                       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                        <div>
+                        <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-semibold text-slate-900">
                             {providerLabel}
                           </p>
-                          <p className="text-xs text-slate-500">
-                            {isSuccess
-                              ? mentioned
-                                ? `${domain} was mentioned in the response.`
-                                : `${domain} was not mentioned.`
-                              : "Provider failed to return a response."}
-                          </p>
+                          {typeof result.firstIndex === "number" && result.firstIndex >= 0 && mentioned && (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              Position #{result.firstIndex + 1}
+                            </span>
+                          )}
                         </div>
                         <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${statusBadge}`}>
                           {isSuccess ? (mentioned ? "Mentioned" : "Not mentioned") : result.status}
                         </span>
                       </div>
 
+                      <p className="mt-2 text-xs text-slate-500">
+                        {isSuccess
+                          ? mentioned
+                            ? `${domain} was mentioned in the response.`
+                            : `${domain} was not mentioned.`
+                          : "Provider failed to return a response."}
+                      </p>
+
                       {typeof result.firstIndex === "number" && result.firstIndex >= 0 && mentioned && (
                         <div className="mt-3 space-y-2">
-                          <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-700">
-                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              Position #{result.firstIndex + 1}
-                            </span>
-                          </div>
                           <p className="text-xs text-slate-600">
                             Your domain appears at character {result.firstIndex + 1} of the AI&apos;s response. Lower positions = earlier mention = better visibility.
                           </p>
@@ -722,14 +785,43 @@ export default function Home() {
                         </div>
                       )}
 
-                      {mentioned && result.evidence && (
-                        <div className="mt-3 rounded-xl bg-slate-50 p-3 text-xs italic text-slate-600">
-                          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                            Snippet
-                          </p>
-                          <p className="mt-1">&ldquo;{result.evidence}&rdquo;</p>
-                        </div>
-                      )}
+                      {mentioned && result.rawText && typeof result.firstIndex === "number" && (() => {
+                        const brandName = domain.split('.')[0];
+                        const contextText = extractContextAroundMention(result.rawText, result.firstIndex, domain);
+
+                        // Highlight the brand/domain in the context
+                        const highlightPattern = new RegExp(
+                          `(${domain.replace(/\./g, '\\.')}|\\*\\*${brandName}\\*\\*|${brandName})`,
+                          'gi'
+                        );
+                        const parts = contextText.split(highlightPattern);
+
+                        return contextText ? (
+                          <div className="mt-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-700 leading-relaxed">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-2">
+                              Context
+                            </p>
+                            <p>
+                              &ldquo;
+                              {parts.map((part, index) => {
+                                if (part && (
+                                  part.toLowerCase() === domain.toLowerCase() ||
+                                  part.toLowerCase() === brandName.toLowerCase() ||
+                                  part.toLowerCase() === `**${brandName.toLowerCase()}**`
+                                )) {
+                                  return (
+                                    <span key={index} className="bg-yellow-200 font-semibold">
+                                      {part}
+                                    </span>
+                                  );
+                                }
+                                return <span key={index}>{part}</span>;
+                              })}
+                              &rdquo;
+                            </p>
+                          </div>
+                        ) : null;
+                      })()}
 
                       {result.rawText && (
                         <div className="mt-3">
@@ -745,13 +837,44 @@ export default function Home() {
                           >
                             {isExpanded ? "Hide full response" : "View full response"}
                           </button>
-                          {isExpanded && (
-                            <div className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-700 shadow-inner">
-                              <pre className="whitespace-pre-wrap break-words font-sans text-[12px]">
-                                {result.rawText}
-                              </pre>
-                            </div>
-                          )}
+                          {isExpanded && (() => {
+                            // Highlight all occurrences of the domain/brand in the full response
+                            const text = result.rawText;
+
+                            // Extract brand name from domain (e.g., "tinder" from "tinder.com")
+                            const brandName = domain.split('.')[0];
+
+                            // Create regex to match both domain and brand name (case-insensitive)
+                            const searchPattern = new RegExp(
+                              `(${domain.replace(/\./g, '\\.')}|\\*\\*${brandName}\\*\\*|${brandName})`,
+                              'gi'
+                            );
+
+                            // Split text and highlight matches
+                            const parts = text.split(searchPattern);
+
+                            return (
+                              <div className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-700 shadow-inner">
+                                <pre className="whitespace-pre-wrap break-words font-sans text-[12px]">
+                                  {parts.map((part, index) => {
+                                    // Check if this part matches our search pattern
+                                    if (part && (
+                                      part.toLowerCase() === domain.toLowerCase() ||
+                                      part.toLowerCase() === brandName.toLowerCase() ||
+                                      part.toLowerCase() === `**${brandName.toLowerCase()}**`
+                                    )) {
+                                      return (
+                                        <mark key={index} className="bg-yellow-300 font-bold px-0.5">
+                                          {part}
+                                        </mark>
+                                      );
+                                    }
+                                    return <span key={index}>{part}</span>;
+                                  })}
+                                </pre>
+                              </div>
+                            );
+                          })()}
                         </div>
                       )}
 
@@ -768,7 +891,7 @@ export default function Home() {
               {/* Email Section - appears after results */}
               {!loading && !emailSaved && (
                 <div className="mt-8 p-6 bg-white rounded-lg border border-slate-200">
-                  <h3 className="text-lg font-semibold mb-3">Get Your Report via Email</h3>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-3">Get Your Report via Email</h3>
                   <p className="text-sm text-slate-600 mb-4">
                     Enter your email to instantly receive a PDF report with detailed analysis
                   </p>
@@ -779,12 +902,12 @@ export default function Home() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       disabled={emailSaving}
-                      className="flex-1 h-12 rounded-lg border border-slate-200 bg-white px-4 text-base text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+                      className="flex-1 h-12 rounded-lg border-2 border-amber-500 bg-white px-4 text-base text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-amber-600 focus:ring-2 focus:ring-amber-200"
                     />
                     <button
                       onClick={handleSaveEmail}
                       disabled={emailSaving || !email.trim()}
-                      className="h-12 px-6 rounded-lg bg-slate-900 text-white font-semibold transition hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="h-12 px-6 rounded-lg bg-amber-500 text-white font-semibold transition hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {emailSaving ? "Sending..." : "Send Report"}
                     </button>

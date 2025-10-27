@@ -1,0 +1,45 @@
+
+> seoaoe_tmp@0.1.0 build
+> next build
+
+   ▲ Next.js 15.5.4
+   - Environments: .env.local, .env
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 1648ms
+   Linting and checking validity of types ...
+   Collecting page data ...
+Redis Client Connected
+Redis Client Ready
+   Generating static pages (0/9) ...
+   Generating static pages (2/9) 
+   Generating static pages (4/9) 
+   Generating static pages (6/9) 
+ ✓ Generating static pages (9/9)
+Redis Client Connected
+Redis Client Ready
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+┌ ○ /                                     6.4 kB         108 kB
+├ ○ /_not-found                            997 B         103 kB
+├ ƒ /admin                               5.98 kB         108 kB
+├ ƒ /api/admin/login                       141 B         102 kB
+├ ƒ /api/admin/logout                      141 B         102 kB
+├ ƒ /api/email-preview                     141 B         102 kB
+├ ƒ /api/report/[id]                       141 B         102 kB
+├ ƒ /api/run                               141 B         102 kB
+├ ƒ /api/run/[id]                          141 B         102 kB
+└ ƒ /api/run/[id]/email                    141 B         102 kB
++ First Load JS shared by all             102 kB
+  ├ chunks/255-4efeec91c7871d79.js       45.8 kB
+  ├ chunks/4bd1b696-c023c6e3521b1417.js  54.2 kB
+  └ other shared chunks (total)          1.89 kB
+
+
+ƒ Middleware                             33.9 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

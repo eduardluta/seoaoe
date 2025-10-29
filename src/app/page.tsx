@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 type RunResult = {
   provider: string;
   model: string | null;
-  status: "ok" | "error" | "timeout" | "pending" | string;
+  status: "ok" | "error" | "timeout" | string;
   mentioned: boolean | null;
   firstIndex: number | null;
   evidence: string | null;
@@ -383,10 +383,7 @@ export default function Home() {
   const [email, setEmail] = useState("");
   const [emailSaving, setEmailSaving] = useState(false);
   const [emailSaved, setEmailSaved] = useState(false);
-  const processedCount = useMemo(
-    () => checkResults.filter((result) => COMPLETED_STATUSES.has(result.status.toLowerCase())).length,
-    [checkResults]
-  );
+  const processedCount = checkResults.length;
   const mentionCount = useMemo(
     () => checkResults.filter((result) => result.status === "ok" && result.mentioned).length,
     [checkResults]
@@ -410,6 +407,7 @@ export default function Home() {
     e.preventDefault();
     setError(null);
     setStatusMessage("Starting visibility check…");
+    setCheckResults([]);
     setExpandedProviders({});
     setRunId(null);
     setEmail("");
@@ -452,6 +450,8 @@ export default function Home() {
       const initialExpected =
         Number(json.providers_expected) || Number(json.providersExpected) || PROVIDER_ORDER.length;
       setExpectedProviders(initialExpected);
+      let attempts = 0;
+      const maxAttempts = 40;
 
       const fetchResults = async () => {
         const resultRes = await fetch(`/api/run/${currentRunId}`);
@@ -467,7 +467,6 @@ export default function Home() {
         return { parsedResults, expected };
       };
 
-      // Handle cached results (instant load, no progressive loading)
       if (json.status === "completed") {
         const { parsedResults } = await fetchResults();
         setCheckResults(parsedResults);
@@ -475,23 +474,6 @@ export default function Home() {
         setLoading(false);
         return;
       }
-
-      // For new requests, initialize empty provider blocks for progressive loading
-      const initialResults: RunResult[] = PROVIDER_ORDER.map(provider => ({
-        provider,
-        model: null,
-        status: "pending",
-        mentioned: null,
-        firstIndex: null,
-        evidence: null,
-        latencyMs: null,
-        costUsd: null,
-        rawText: null,
-      }));
-      setCheckResults(initialResults);
-
-      let attempts = 0;
-      const maxAttempts = 40;
 
       setStatusMessage("Collecting provider responses…");
 
@@ -507,29 +489,22 @@ export default function Home() {
         }
 
         try {
-          const { parsedResults, expected } = await fetchResults();
+      const { parsedResults, expected } = await fetchResults();
           const completedResults = parsedResults.filter((result) =>
             COMPLETED_STATUSES.has(result.status.toLowerCase())
           );
 
-          // Merge completed results with pending ones
-          setCheckResults(prev => {
-            const updated = [...prev];
-            completedResults.forEach(completedResult => {
-              const index = updated.findIndex(r => r.provider === completedResult.provider);
-              if (index !== -1) {
-                updated[index] = completedResult;
-              }
-            });
-            return updated;
-          });
-
-          const remaining = Math.max(expected - completedResults.length, 0);
-          setStatusMessage(
-            remaining > 0
-              ? `Collected ${completedResults.length} of ${expected} providers…`
-              : "All providers have responded. Scroll down for the breakdown."
-          );
+          if (completedResults.length > 0) {
+            setCheckResults(completedResults);
+            const remaining = Math.max(expected - completedResults.length, 0);
+            setStatusMessage(
+              remaining > 0
+                ? `Collected ${completedResults.length} of ${expected} providers…`
+                : "All providers have responded. Scroll down for the breakdown."
+            );
+          } else {
+            setStatusMessage("Collecting provider responses…");
+          }
 
           if (completedResults.length >= expected) {
             window.clearInterval(pollInterval);
@@ -682,8 +657,8 @@ export default function Home() {
       <div className="w-full bg-gradient-to-br from-neutral-950 to-black pb-16 pt-12">
         <div className="mx-auto w-full max-w-3xl px-6">
 
-          {/* Loading State - Only show before provider blocks appear */}
-          {loading && checkResults.length === 0 && (
+          {/* Loading State */}
+          {loading && (
             <div className="w-full max-w-2xl mx-auto">
               <div className="rounded-xl border border-slate-200 bg-white p-8">
                 {/* Spinner */}
@@ -702,6 +677,22 @@ export default function Home() {
                       This may take up to 30 seconds
                     </p>
                   </div>
+
+                  {/* Progress Info */}
+                  {processedCount > 0 && (
+                    <div className="w-full">
+                      <div className="flex justify-between text-sm text-slate-600 mb-2">
+                        <span>Progress</span>
+                        <span>{processedCount} of {expectedProviders} providers</span>
+                      </div>
+                      <div className="w-full bg-slate-200 rounded-full h-2">
+                        <div
+                          className="bg-slate-900 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${(processedCount / expectedProviders) * 100}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -712,47 +703,30 @@ export default function Home() {
             <p className="mb-6 text-center text-base text-neutral-400">{statusMessage}</p>
           )}
 
-          {checkResults.length > 0 && (
+          {processedCount > 0 && !loading && (
             <section className="w-full max-w-2xl mx-auto">
-              {/* Status Message for loading state */}
-              {loading && (
-                <div className="mb-8 text-center">
-                  <p className="text-lg font-semibold text-white mb-2">
-                    {statusMessage || "Loading results..."}
-                  </p>
-                  <div className="flex justify-center items-center gap-2 text-sm text-slate-300">
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-white"></div>
-                    <span>{processedCount} of {expectedProviders} providers complete</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Summary - only show when not loading */}
-              {!loading && (
-                <div className="mb-8 text-center">
-                  <p className="text-5xl font-bold text-white mb-3">
-                    {mentionCount}/{expectedProviders}
-                  </p>
-                  <p className="text-base text-neutral-300">
-                    Providers mentioned your domain
-                  </p>
-                </div>
-              )}
+              {/* Summary */}
+              <div className="mb-8 text-center">
+                <p className="text-5xl font-bold text-white mb-3">
+                  {mentionCount}/{expectedProviders}
+                </p>
+                <p className="text-base text-neutral-300">
+                  Providers mentioned your domain
+                </p>
+              </div>
 
               {/* Results Grid */}
               <div className="space-y-4">
                 {checkResults.map((result, index) => {
                   const providerLabel = PROVIDER_LABELS[result.provider] ?? result.provider;
                   const status = result.status.toLowerCase();
-                  const isPending = status === "pending";
                   const isSuccess = status === "ok";
                   const mentioned = Boolean(result.mentioned);
                   const providerKey = `${result.provider}-${result.model ?? index}`;
                   const isExpanded = Boolean(expandedProviders[providerKey]);
 
-                  const statusBadge = isPending
-                    ? "bg-blue-100 text-blue-700"
-                    : isSuccess && mentioned
+                  const statusBadge =
+                    isSuccess && mentioned
                       ? "bg-emerald-100 text-emerald-700"
                       : isSuccess
                       ? "bg-slate-100 text-slate-600"
@@ -761,61 +735,36 @@ export default function Home() {
                   return (
                     <div
                       key={providerKey}
-                      className={`rounded-2xl border bg-white p-5 shadow-sm transition ${isPending ? "border-blue-200 animate-pulse" : "border-slate-200 hover:border-slate-300"}`}
+                      className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300"
                     >
-                      {isPending ? (
-                        // Skeleton loading state
-                        <>
-                          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                            <p className="text-sm font-semibold text-slate-900">
-                              {providerLabel}
-                            </p>
-                            <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold bg-blue-100 text-blue-700">
-                              <svg className="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                              </svg>
-                              Loading...
-                            </span>
-                          </div>
-                          <div className="mt-3 space-y-2">
-                            <div className="h-3 bg-slate-200 rounded animate-pulse w-3/4"></div>
-                            <div className="h-3 bg-slate-200 rounded animate-pulse w-1/2"></div>
-                          </div>
-                        </>
-                      ) : (
-                        // Completed result state
-                        <>
-                          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="text-sm font-semibold text-slate-900">
-                                {providerLabel}
-                              </p>
-                              {typeof result.firstIndex === "number" && result.firstIndex >= 0 && mentioned && (
-                                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                  </svg>
-                                  Position #{result.firstIndex + 1}
-                                </span>
-                              )}
-                            </div>
-                            <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${statusBadge}`}>
-                              {isSuccess ? (mentioned ? "Mentioned" : "Not mentioned") : result.status}
-                            </span>
-                          </div>
-
-                          <p className="mt-2 text-xs text-slate-500">
-                            {isSuccess
-                              ? mentioned
-                                ? `${domain} was mentioned in the response.`
-                                : `${domain} was not mentioned.`
-                              : "Provider failed to return a response."}
+                      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-slate-900">
+                            {providerLabel}
                           </p>
-                        </>
-                      )}
+                          {typeof result.firstIndex === "number" && result.firstIndex >= 0 && mentioned && (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              Position #{result.firstIndex + 1}
+                            </span>
+                          )}
+                        </div>
+                        <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${statusBadge}`}>
+                          {isSuccess ? (mentioned ? "Mentioned" : "Not mentioned") : result.status}
+                        </span>
+                      </div>
 
-                      {!isPending && typeof result.firstIndex === "number" && result.firstIndex >= 0 && mentioned && (
+                      <p className="mt-2 text-xs text-slate-500">
+                        {isSuccess
+                          ? mentioned
+                            ? `${domain} was mentioned in the response.`
+                            : `${domain} was not mentioned.`
+                          : "Provider failed to return a response."}
+                      </p>
+
+                      {typeof result.firstIndex === "number" && result.firstIndex >= 0 && mentioned && (
                         <div className="mt-3 space-y-2">
                           <p className="text-xs text-slate-600">
                             Your domain appears at character {result.firstIndex + 1} of the AI&apos;s response. Lower positions = earlier mention = better visibility.
@@ -836,7 +785,7 @@ export default function Home() {
                         </div>
                       )}
 
-                      {!isPending && mentioned && result.rawText && typeof result.firstIndex === "number" && (() => {
+                      {mentioned && result.rawText && typeof result.firstIndex === "number" && (() => {
                         const brandName = domain.split('.')[0];
                         const contextText = extractContextAroundMention(result.rawText, result.firstIndex, domain);
 
@@ -874,7 +823,7 @@ export default function Home() {
                         ) : null;
                       })()}
 
-                      {!isPending && result.rawText && (
+                      {result.rawText && (
                         <div className="mt-3">
                           <button
                             type="button"
@@ -929,7 +878,7 @@ export default function Home() {
                         </div>
                       )}
 
-                      {!isPending && !isSuccess && (
+                      {!isSuccess && (
                         <p className="mt-3 text-xs text-rose-500">
                           We couldn&apos;t fetch this provider&apos;s answer. Try again later or open the admin dashboard for logs.
                         </p>

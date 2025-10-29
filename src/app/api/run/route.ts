@@ -108,62 +108,89 @@ export async function POST(req: Request) {
       select: { id: true, createdAt: true },
     });
 
-    // Step 2: run all providers in parallel
+    // Step 2: run all providers in parallel in background
     const input: RunRequest = { keyword, domain, country, language, email };
 
-    // Run providers in parallel and collect results
-    const providerResults = await Promise.all(
-      PROVIDERS.map(({ key, model, run }) =>
-        run(input)
-          .then((result) => ({
-            provider: key,
-            model,
-            status: "ok" as const,
-            mentioned: result.mentioned,
-            firstIndex: result.position ?? undefined,
-            evidence: result.snippet ?? undefined,
-            rawResponse: buildRawResponse(result),
-            latencyMs: result.latencyMs ?? undefined,
-            costUsd: result.costUsd ?? undefined,
-          }))
-          .catch((error) => ({
-            provider: key,
-            model,
-            status: "error" as const,
-            mentioned: false,
-            firstIndex: undefined,
-            evidence: undefined,
-            rawResponse: { error: String(error) },
-            latencyMs: undefined,
-            costUsd: undefined,
-          }))
-      )
-    );
+    // Return 202 immediately, then process providers in background
+    // Fire off the background processing without awaiting
+    (async () => {
+      const providerResults = await Promise.all(
+        PROVIDERS.map(({ key, model, run }) =>
+          run(input)
+            .then(async (result) => {
+              const providerResult = {
+                provider: key,
+                model,
+                status: "ok" as const,
+                mentioned: result.mentioned,
+                firstIndex: result.position ?? undefined,
+                evidence: result.snippet ?? undefined,
+                rawResponse: buildRawResponse(result),
+                latencyMs: result.latencyMs ?? undefined,
+                costUsd: result.costUsd ?? undefined,
+              };
 
-    // Save results to database sequentially to avoid connection pool exhaustion
-    for (const result of providerResults) {
-      const resultId = `result_${runRecord.id}_${result.provider}_${Date.now()}`;
-      await prisma.runResult.create({
-        data: {
-          id: resultId,
-          runId: runRecord.id,
-          provider: result.provider,
-          model: result.model,
-          status: result.status,
-          mentioned: result.mentioned,
-          firstIndex: result.firstIndex,
-          evidence: result.evidence,
-          rawResponse: JSON.parse(JSON.stringify(result.rawResponse)),
-          latencyMs: result.latencyMs,
-          costUsd: result.costUsd,
-        },
-      });
-    }
+              // Save immediately as each provider completes
+              const resultId = `result_${runRecord.id}_${key}_${Date.now()}`;
+              await prisma.runResult.create({
+                data: {
+                  id: resultId,
+                  runId: runRecord.id,
+                  provider: providerResult.provider,
+                  model: providerResult.model,
+                  status: providerResult.status,
+                  mentioned: providerResult.mentioned,
+                  firstIndex: providerResult.firstIndex,
+                  evidence: providerResult.evidence,
+                  rawResponse: JSON.parse(JSON.stringify(providerResult.rawResponse)),
+                  latencyMs: providerResult.latencyMs,
+                  costUsd: providerResult.costUsd,
+                },
+              });
 
-    // Cache the results for 24 hours
-    await setCachedResults(cacheKey, providerResults, 86400);
+              return providerResult;
+            })
+            .catch(async (error) => {
+              const providerResult = {
+                provider: key,
+                model,
+                status: "error" as const,
+                mentioned: false,
+                firstIndex: undefined,
+                evidence: undefined,
+                rawResponse: { error: String(error) },
+                latencyMs: undefined,
+                costUsd: undefined,
+              };
 
-    // Minimal success response for now
+              // Save error immediately
+              const resultId = `result_${runRecord.id}_${key}_${Date.now()}`;
+              await prisma.runResult.create({
+                data: {
+                  id: resultId,
+                  runId: runRecord.id,
+                  provider: providerResult.provider,
+                  model: providerResult.model,
+                  status: providerResult.status,
+                  mentioned: providerResult.mentioned,
+                  firstIndex: providerResult.firstIndex,
+                  evidence: providerResult.evidence,
+                  rawResponse: JSON.parse(JSON.stringify(providerResult.rawResponse)),
+                  latencyMs: providerResult.latencyMs,
+                  costUsd: providerResult.costUsd,
+                },
+              });
+
+              return providerResult;
+            })
+        )
+      );
+
+      // Cache the results for 24 hours after all complete
+      await setCachedResults(cacheKey, providerResults, 86400);
+    })();
+
+    // Minimal success response - return immediately
     return NextResponse.json(
       {
         run_id: runRecord.id,

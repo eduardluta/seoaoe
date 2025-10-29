@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 type RunResult = {
   provider: string;
   model: string | null;
-  status: "ok" | "error" | "timeout" | string;
+  status: "ok" | "error" | "timeout" | "pending" | string;
   mentioned: boolean | null;
   firstIndex: number | null;
   evidence: string | null;
@@ -230,25 +230,55 @@ function toNumber(value: unknown): number | null {
   return null;
 }
 
-function extractDomainsMentionedBefore(text: string, targetIndex: number): string[] {
-  // Extract text before the target domain
-  const textBefore = text.substring(0, targetIndex);
+// Helper to get ordinal suffix (1st, 2nd, 3rd, 4th...)
+function getOrdinalSuffix(num: number): string {
+  return num === 1 ? 'st' : num === 2 ? 'nd' : num === 3 ? 'rd' : 'th';
+}
 
-  // Regex to match domain patterns (e.g., example.com, website.de, etc.)
+// Helper to get badge color based on ranking
+function getRankBadgeColor(rank: number): string {
+  return rank === 1
+    ? "bg-emerald-100 text-emerald-700"
+    : rank <= 3
+    ? "bg-orange-100 text-orange-700"
+    : "bg-red-100 text-red-700";
+}
+
+// Combined function to extract competitors and calculate ranking in one pass
+function analyzeBrandPosition(text: string, targetIndex: number): { ranking: number; competitors: string[] } {
+  const textBeforeTarget = text.substring(0, targetIndex);
   const domainRegex = /\b([a-z0-9-]+\.(?:com|de|net|org|co|io|app|ai|ch|fr|it|nl|uk|eu))\b/gi;
 
-  const domains = new Set<string>();
+  const seenBrands = new Set<string>();
+  const uniqueDomains: string[] = [];
   let match;
 
-  while ((match = domainRegex.exec(textBefore)) !== null) {
+  // Single regex pass to get both ranking and competitors
+  while ((match = domainRegex.exec(textBeforeTarget)) !== null) {
     const domain = match[1].toLowerCase();
-    // Filter out common non-brand domains
     if (!domain.includes('example.') && !domain.includes('test.')) {
-      domains.add(domain);
+      const brandName = domain.split('.')[0];
+
+      if (!seenBrands.has(brandName)) {
+        seenBrands.add(brandName);
+        uniqueDomains.push(domain);
+      }
     }
   }
 
-  return Array.from(domains);
+  return {
+    ranking: seenBrands.size + 1,
+    competitors: uniqueDomains
+  };
+}
+
+// Keep these for backward compatibility (they now just call the combined function)
+function extractDomainsMentionedBefore(text: string, targetIndex: number): string[] {
+  return analyzeBrandPosition(text, targetIndex).competitors;
+}
+
+function getBrandRanking(text: string, targetDomain: string, targetIndex: number): number {
+  return analyzeBrandPosition(text, targetIndex).ranking;
 }
 
 function extractContextAroundMention(text: string, mentionIndex: number, domain: string): string {
@@ -383,7 +413,10 @@ export default function Home() {
   const [email, setEmail] = useState("");
   const [emailSaving, setEmailSaving] = useState(false);
   const [emailSaved, setEmailSaved] = useState(false);
-  const processedCount = checkResults.length;
+  const processedCount = useMemo(
+    () => checkResults.filter((result) => COMPLETED_STATUSES.has(result.status.toLowerCase())).length,
+    [checkResults]
+  );
   const mentionCount = useMemo(
     () => checkResults.filter((result) => result.status === "ok" && result.mentioned).length,
     [checkResults]
@@ -475,6 +508,20 @@ export default function Home() {
         return;
       }
 
+      // Initialize pending provider blocks for progressive loading
+      const initialResults: RunResult[] = PROVIDER_ORDER.map(provider => ({
+        provider,
+        model: null,
+        status: "pending",
+        mentioned: null,
+        firstIndex: null,
+        evidence: null,
+        latencyMs: null,
+        costUsd: null,
+        rawText: null,
+      }));
+      setCheckResults(initialResults);
+
       setStatusMessage("Collecting provider responses…");
 
       const pollInterval = window.setInterval(async () => {
@@ -489,22 +536,29 @@ export default function Home() {
         }
 
         try {
-      const { parsedResults, expected } = await fetchResults();
+          const { parsedResults, expected } = await fetchResults();
           const completedResults = parsedResults.filter((result) =>
             COMPLETED_STATUSES.has(result.status.toLowerCase())
           );
 
-          if (completedResults.length > 0) {
-            setCheckResults(completedResults);
-            const remaining = Math.max(expected - completedResults.length, 0);
-            setStatusMessage(
-              remaining > 0
-                ? `Collected ${completedResults.length} of ${expected} providers…`
-                : "All providers have responded. Scroll down for the breakdown."
-            );
-          } else {
-            setStatusMessage("Collecting provider responses…");
-          }
+          // Merge completed results with pending ones (progressive loading)
+          setCheckResults(prev => {
+            const updated = [...prev];
+            completedResults.forEach(completedResult => {
+              const index = updated.findIndex(r => r.provider === completedResult.provider);
+              if (index !== -1) {
+                updated[index] = completedResult;
+              }
+            });
+            return updated;
+          });
+
+          const remaining = Math.max(expected - completedResults.length, 0);
+          setStatusMessage(
+            remaining > 0
+              ? `Collected ${completedResults.length} of ${expected} providers…`
+              : "All providers have responded. Scroll down for the breakdown."
+          );
 
           if (completedResults.length >= expected) {
             window.clearInterval(pollInterval);
@@ -659,7 +713,7 @@ export default function Home() {
 
           {/* Loading State */}
           {loading && (
-            <div className="w-full max-w-2xl mx-auto">
+            <div className="w-full max-w-2xl mx-auto space-y-6">
               <div className="rounded-xl border border-slate-200 bg-white p-8">
                 {/* Spinner */}
                 <div className="flex flex-col items-center justify-center space-y-6">
@@ -695,6 +749,91 @@ export default function Home() {
                   )}
                 </div>
               </div>
+
+              {/* Progressive Provider Cards */}
+              {checkResults.length > 0 && (
+                <div className="space-y-4">
+                  {checkResults.map((result, index) => {
+                    const providerLabel = PROVIDER_LABELS[result.provider] ?? result.provider;
+                    const status = result.status.toLowerCase();
+                    const isPending = status === "pending";
+                    const isSuccess = status === "ok";
+                    const mentioned = Boolean(result.mentioned);
+                    const providerKey = `${result.provider}-${result.model ?? index}`;
+
+                    if (isPending) {
+                      // Skeleton loading state for pending providers
+                      return (
+                        <div
+                          key={providerKey}
+                          className="rounded-2xl border-2 border-blue-200 bg-white p-5 shadow-sm animate-pulse"
+                        >
+                          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-200 border-t-blue-600"></div>
+                              <p className="text-sm font-semibold text-slate-900">
+                                {providerLabel}
+                              </p>
+                            </div>
+                            <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+                              Loading...
+                            </span>
+                          </div>
+                          <div className="mt-3 space-y-2">
+                            <div className="h-3 bg-slate-200 rounded w-3/4"></div>
+                            <div className="h-3 bg-slate-200 rounded w-1/2"></div>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // Completed provider card (same as non-loading state)
+                    const statusBadge =
+                      isSuccess && mentioned
+                        ? "bg-emerald-100 text-emerald-700"
+                        : isSuccess
+                        ? "bg-slate-100 text-slate-600"
+                        : "bg-yellow-100 text-yellow-700";
+
+                    return (
+                      <div
+                        key={providerKey}
+                        className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300"
+                      >
+                        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-semibold text-slate-900">
+                              {providerLabel}
+                            </p>
+                            {typeof result.firstIndex === "number" && result.firstIndex >= 0 && mentioned && result.rawText && (() => {
+                              const brandRank = getBrandRanking(result.rawText, domain, result.firstIndex);
+                              return (
+                                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${getRankBadgeColor(brandRank)}`}>
+                                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  {brandRank}{getOrdinalSuffix(brandRank)} brand · Character #{result.firstIndex + 1}
+                                </span>
+                              );
+                            })()}
+                          </div>
+                          <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${statusBadge}`}>
+                            {isSuccess ? (mentioned ? "Mentioned" : "Not mentioned") : result.status}
+                          </span>
+                        </div>
+
+                        <p className="mt-2 text-xs text-slate-500">
+                          {isSuccess
+                            ? mentioned
+                              ? `${domain} was mentioned in the response.`
+                              : `${domain} was not mentioned.`
+                            : "Provider failed to return a response."}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -742,14 +881,17 @@ export default function Home() {
                           <p className="text-sm font-semibold text-slate-900">
                             {providerLabel}
                           </p>
-                          {typeof result.firstIndex === "number" && result.firstIndex >= 0 && mentioned && (
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              Position #{result.firstIndex + 1}
-                            </span>
-                          )}
+                          {typeof result.firstIndex === "number" && result.firstIndex >= 0 && mentioned && result.rawText && (() => {
+                            const brandRank = getBrandRanking(result.rawText, domain, result.firstIndex);
+                            return (
+                              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${getRankBadgeColor(brandRank)}`}>
+                                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                {brandRank}{getOrdinalSuffix(brandRank)} brand · Character #{result.firstIndex + 1}
+                              </span>
+                            );
+                          })()}
                         </div>
                         <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${statusBadge}`}>
                           {isSuccess ? (mentioned ? "Mentioned" : "Not mentioned") : result.status}
@@ -764,23 +906,32 @@ export default function Home() {
                           : "Provider failed to return a response."}
                       </p>
 
-                      {typeof result.firstIndex === "number" && result.firstIndex >= 0 && mentioned && (
+                      {typeof result.firstIndex === "number" && result.firstIndex >= 0 && mentioned && result.rawText && (
                         <div className="mt-3 space-y-2">
-                          <p className="text-xs text-slate-600">
-                            Your domain appears at character {result.firstIndex + 1} of the AI&apos;s response. Lower positions = earlier mention = better visibility.
-                          </p>
-                          {result.rawText && (() => {
-                            const otherDomains = extractDomainsMentionedBefore(result.rawText, result.firstIndex);
-                            return otherDomains.length > 0 ? (
-                              <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 p-2">
-                                <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 mb-1">
-                                  {otherDomains.length} {otherDomains.length === 1 ? 'competitor' : 'competitors'} mentioned before you
+                          {(() => {
+                            // Single function call instead of two separate ones
+                            const { ranking: brandRank, competitors: otherDomains } = analyzeBrandPosition(result.rawText, result.firstIndex);
+
+                            return (
+                              <>
+                                <p className="text-xs text-slate-600">
+                                  {brandRank === 1
+                                    ? `🎉 Your domain is the first brand mentioned in this response!`
+                                    : `Your domain is the ${brandRank}${getOrdinalSuffix(brandRank)} brand mentioned (character position ${result.firstIndex + 1}).`
+                                  }
                                 </p>
-                                <p className="text-xs text-amber-800">
-                                  {otherDomains.join(', ')}
-                                </p>
-                              </div>
-                            ) : null;
+                                {otherDomains.length > 0 && (
+                                  <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 p-2">
+                                    <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 mb-1">
+                                      {otherDomains.length} {otherDomains.length === 1 ? 'competitor' : 'competitors'} mentioned before you
+                                    </p>
+                                    <p className="text-xs text-amber-800">
+                                      {otherDomains.join(', ')}
+                                    </p>
+                                  </div>
+                                )}
+                              </>
+                            );
                           })()}
                         </div>
                       )}

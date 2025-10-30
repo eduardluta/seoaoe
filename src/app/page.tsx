@@ -90,68 +90,6 @@ const COUNTRIES = [
   { code: "VE", name: "Venezuela", flag: "🇻🇪" },
 ];
 
-const LANGUAGES = [
-  // Top 5 most spoken languages globally
-  { code: "en", name: "English" },
-  { code: "es", name: "Spanish" },
-  { code: "fr", name: "French" },
-  { code: "pt", name: "Portuguese" },
-  { code: "de", name: "German" },
-
-  // All other languages (A-Z)
-  { code: "sq", name: "Albanian" },
-  { code: "eu", name: "Basque" },
-  { code: "be", name: "Belarusian" },
-  { code: "bs", name: "Bosnian" },
-  { code: "bg", name: "Bulgarian" },
-  { code: "ca", name: "Catalan" },
-  { code: "hr", name: "Croatian" },
-  { code: "cs", name: "Czech" },
-  { code: "da", name: "Danish" },
-  { code: "nl", name: "Dutch" },
-  { code: "et", name: "Estonian" },
-  { code: "fi", name: "Finnish" },
-  { code: "gl", name: "Galician" },
-  { code: "el", name: "Greek" },
-  { code: "hu", name: "Hungarian" },
-  { code: "is", name: "Icelandic" },
-  { code: "ga", name: "Irish" },
-  { code: "it", name: "Italian" },
-  { code: "lv", name: "Latvian" },
-  { code: "lt", name: "Lithuanian" },
-  { code: "lb", name: "Luxembourgish" },
-  { code: "mk", name: "Macedonian" },
-  { code: "mt", name: "Maltese" },
-  { code: "me", name: "Montenegrin" },
-  { code: "no", name: "Norwegian" },
-  { code: "pl", name: "Polish" },
-  { code: "ro", name: "Romanian" },
-  { code: "sr", name: "Serbian" },
-  { code: "sk", name: "Slovak" },
-  { code: "sl", name: "Slovenian" },
-  { code: "sv", name: "Swedish" },
-  { code: "uk", name: "Ukrainian" },
-
-  // Regional variants (A-Z)
-  { code: "de-AT", name: "German (Austria)" },
-  { code: "de-DE", name: "German (Germany)" },
-  { code: "de-CH", name: "German (Switzerland)" },
-  { code: "nl-BE", name: "Dutch (Belgium)" },
-  { code: "nl-NL", name: "Dutch (Netherlands)" },
-  { code: "en-CA", name: "English (Canada)" },
-  { code: "en-GB", name: "English (UK)" },
-  { code: "en-US", name: "English (US)" },
-  { code: "fr-CA", name: "French (Canada)" },
-  { code: "fr-FR", name: "French (France)" },
-  { code: "it-CH", name: "Italian (Switzerland)" },
-  { code: "it-IT", name: "Italian (Italy)" },
-  { code: "pt-BR", name: "Portuguese (Brazil)" },
-  { code: "pt-PT", name: "Portuguese (Portugal)" },
-  { code: "es-AR", name: "Spanish (Argentina)" },
-  { code: "es-ES", name: "Spanish (Spain)" },
-  { code: "es-MX", name: "Spanish (Mexico)" },
-];
-
 const PROVIDER_LABELS: Record<string, string> = {
   openai: "ChatGPT",
   grok: "Grok",
@@ -312,15 +250,6 @@ function analyzeBrandPosition(text: string, targetIndex: number): { ranking: num
   };
 }
 
-// Keep these for backward compatibility (they now just call the combined function)
-function extractDomainsMentionedBefore(text: string, targetIndex: number): string[] {
-  return analyzeBrandPosition(text, targetIndex).competitors;
-}
-
-function getBrandRanking(text: string, targetDomain: string, targetIndex: number): number {
-  return analyzeBrandPosition(text, targetIndex).ranking;
-}
-
 function extractContextAroundMention(text: string, mentionIndex: number, domain: string): string {
   // Clean up formatting artifacts
   text = text.replace(/===\s*AI Overview\s*===/gi, '').replace(/===+/g, '').trim();
@@ -442,7 +371,6 @@ export default function Home() {
   const [keyword, setKeyword] = useState("");
   const [domain, setDomain] = useState("");
   const [country, setCountry] = useState("US");
-  const [language, setLanguage] = useState("en");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -505,7 +433,7 @@ export default function Home() {
           keyword,
           domain: normalizedDomain,
           country,
-          language,
+          language: "en", // Default to English - keyword defines actual language
         }),
       });
       const json = await res.json();
@@ -694,38 +622,21 @@ export default function Home() {
                 onChange={(event) => setDomain(event.target.value)}
               />
 
-              {/* Country & Language */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <select
-                  id="country"
-                  name="country"
-                  required
-                  className="h-14 w-full appearance-none rounded-lg border-2 border-amber-500 bg-white px-4 text-base text-slate-900 outline-none transition focus:border-amber-600 focus:ring-2 focus:ring-amber-200"
-                  value={country}
-                  onChange={(event) => setCountry(event.target.value)}
-                >
-                  {COUNTRIES.map((item) => (
-                    <option key={item.code} value={item.code}>
-                      {item.flag} {item.name}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  id="language"
-                  name="language"
-                  required
-                  className="h-14 w-full appearance-none rounded-lg border-2 border-amber-500 bg-white px-4 text-base text-slate-900 outline-none transition focus:border-amber-600 focus:ring-2 focus:ring-amber-200"
-                  value={language}
-                  onChange={(event) => setLanguage(event.target.value)}
-                >
-                  {LANGUAGES.map((item) => (
-                    <option key={item.code} value={item.code}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* Country */}
+              <select
+                id="country"
+                name="country"
+                required
+                className="h-14 w-full appearance-none rounded-lg border-2 border-amber-500 bg-white px-4 text-base text-slate-900 outline-none transition focus:border-amber-600 focus:ring-2 focus:ring-amber-200"
+                value={country}
+                onChange={(event) => setCountry(event.target.value)}
+              >
+                {COUNTRIES.map((item) => (
+                  <option key={item.code} value={item.code}>
+                    {item.flag} {item.name}
+                  </option>
+                ))}
+              </select>
 
               {/* Submit Button */}
               <button
@@ -846,7 +757,7 @@ export default function Home() {
                               {providerLabel}
                             </p>
                             {typeof result.firstIndex === "number" && result.firstIndex >= 0 && mentioned && result.rawText && (() => {
-                              const brandRank = getBrandRanking(result.rawText, domain, result.firstIndex);
+                              const brandRank = analyzeBrandPosition(result.rawText, result.firstIndex).ranking;
                               return (
                                 <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${getRankBadgeColor(brandRank)}`}>
                                   <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -861,14 +772,6 @@ export default function Home() {
                             {isSuccess ? (mentioned ? "Mentioned" : "Not mentioned") : result.status}
                           </span>
                         </div>
-
-                        <p className="mt-2 text-xs text-slate-500">
-                          {isSuccess
-                            ? mentioned
-                              ? `${domain} was mentioned in the response.`
-                              : `${domain} was not mentioned.`
-                            : "Provider failed to return a response."}
-                        </p>
                       </div>
                     );
                   })}
@@ -884,14 +787,90 @@ export default function Home() {
 
           {processedCount > 0 && !loading && (
             <section className="w-full max-w-2xl mx-auto">
-              {/* Summary */}
-              <div className="mb-8 text-center">
-                <p className="text-5xl font-bold text-white mb-3">
-                  {mentionCount}/{expectedProviders}
-                </p>
-                <p className="text-base text-neutral-300">
-                  Providers mentioned your domain
-                </p>
+              {/* Enhanced Summary Card */}
+              <div className="mb-8 relative group">
+                {/* Background gradient blob */}
+                <div className="absolute inset-0 bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/20 blur-3xl rounded-full transform scale-110 group-hover:scale-125 transition-transform duration-700"></div>
+
+                {/* Main Card */}
+                <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl border-2 border-amber-500/30 p-8 shadow-2xl backdrop-blur-sm group-hover:border-amber-500/50 transition-all duration-300">
+                  {/* Status Badge */}
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-gradient-to-r from-amber-600 to-orange-600 rounded-full shadow-lg">
+                    <p className="text-xs font-bold text-white uppercase tracking-wider">
+                      Analysis Complete
+                    </p>
+                  </div>
+
+                  {/* Main Score */}
+                  <div className="text-center mt-2">
+                    <div className="inline-flex items-center justify-center gap-3 mb-4">
+                      {/* Success Icon */}
+                      {mentionCount > 0 ? (
+                        <svg className="w-12 h-12 text-emerald-400 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-12 h-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      )}
+
+                      {/* Large Score Display */}
+                      <div>
+                        <p className="text-6xl font-black bg-gradient-to-r from-amber-400 via-orange-400 to-amber-400 bg-clip-text text-transparent leading-none">
+                          {mentionCount}
+                          <span className="text-4xl text-slate-500 font-normal">/{expectedProviders}</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Description */}
+                    <p className="text-lg font-semibold text-white mb-3">
+                      {mentionCount === expectedProviders
+                        ? "Perfect Score! All providers mentioned your domain"
+                        : mentionCount > expectedProviders / 2
+                        ? "Great visibility across AI providers"
+                        : mentionCount > 0
+                        ? "Providers mentioned your domain"
+                        : "No mentions found"}
+                    </p>
+
+                    {/* Progress Bar */}
+                    <div className="w-full bg-slate-700/50 rounded-full h-3 mb-4 overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-emerald-500 via-green-500 to-emerald-500 rounded-full transition-all duration-1000 ease-out shadow-lg shadow-emerald-500/50"
+                        style={{ width: `${(mentionCount / expectedProviders) * 100}%` }}
+                      ></div>
+                    </div>
+
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-3 gap-4 mt-6">
+                      <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50 hover:border-emerald-500/50 transition-colors">
+                        <p className="text-2xl font-bold text-emerald-400">{mentionCount}</p>
+                        <p className="text-xs text-slate-400 uppercase tracking-wide">Mentioned</p>
+                      </div>
+                      <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50 hover:border-slate-500/50 transition-colors">
+                        <p className="text-2xl font-bold text-slate-400">{expectedProviders - mentionCount}</p>
+                        <p className="text-xs text-slate-400 uppercase tracking-wide">Not Found</p>
+                      </div>
+                      <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50 hover:border-amber-500/50 transition-colors">
+                        <p className="text-2xl font-bold text-amber-400">{Math.round((mentionCount / expectedProviders) * 100)}%</p>
+                        <p className="text-xs text-slate-400 uppercase tracking-wide">Success Rate</p>
+                      </div>
+                    </div>
+
+                    {/* Scroll hint */}
+                    <div className="mt-6 flex items-center justify-center gap-2 text-amber-400/70 animate-bounce">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                      <p className="text-xs font-medium">Scroll down for detailed breakdown</p>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Results Grid */}
@@ -911,6 +890,19 @@ export default function Home() {
                       ? "bg-slate-100 text-slate-600"
                       : "bg-yellow-100 text-yellow-700";
 
+                  // Pre-compute values once for this result
+                  const hasValidMention = typeof result.firstIndex === "number" && result.firstIndex >= 0 && mentioned && result.rawText;
+                  const brandAnalysis = hasValidMention ? analyzeBrandPosition(result.rawText!, result.firstIndex!) : null;
+                  const brandName = domain.split('.')[0];
+
+                  // Create highlight regex once
+                  const highlightRegex = new RegExp(
+                    `(${domain.replace(/\./g, '\\.')}|\\*\\*${brandName}\\*\\*|${brandName})`,
+                    'gi'
+                  );
+                  const domainLower = domain.toLowerCase();
+                  const brandNameLower = brandName.toLowerCase();
+
                   return (
                     <div
                       key={providerKey}
@@ -921,43 +913,31 @@ export default function Home() {
                           <p className="text-sm font-semibold text-slate-900">
                             {providerLabel}
                           </p>
-                          {typeof result.firstIndex === "number" && result.firstIndex >= 0 && mentioned && result.rawText && (() => {
-                            const brandRank = getBrandRanking(result.rawText, domain, result.firstIndex);
-                            return (
-                              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${getRankBadgeColor(brandRank)}`}>
-                                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                {brandRank}{getOrdinalSuffix(brandRank)} brand · Character #{result.firstIndex + 1}
-                              </span>
-                            );
-                          })()}
+                          {brandAnalysis && (
+                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${getRankBadgeColor(brandAnalysis.ranking)}`}>
+                              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              {brandAnalysis.ranking}{getOrdinalSuffix(brandAnalysis.ranking)} brand · Character #{result.firstIndex! + 1}
+                            </span>
+                          )}
                         </div>
                         <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${statusBadge}`}>
                           {isSuccess ? (mentioned ? "Mentioned" : "Not mentioned") : result.status}
                         </span>
                       </div>
 
-                      <p className="mt-2 text-xs text-slate-500">
-                        {isSuccess
-                          ? mentioned
-                            ? `${domain} was mentioned in the response.`
-                            : `${domain} was not mentioned.`
-                          : "Provider failed to return a response."}
-                      </p>
-
-                      {typeof result.firstIndex === "number" && result.firstIndex >= 0 && mentioned && result.rawText && (
+                      {brandAnalysis && (
                         <div className="mt-3 space-y-2">
                           {(() => {
-                            // Single function call instead of two separate ones
-                            const { ranking: brandRank, competitors: otherDomains } = analyzeBrandPosition(result.rawText, result.firstIndex);
+                            const { ranking: brandRank, competitors: otherDomains } = brandAnalysis;
 
                             return (
                               <>
                                 <p className="text-xs text-slate-600">
                                   {brandRank === 1
                                     ? `🎉 Your domain is the first brand mentioned in this response!`
-                                    : `Your domain is the ${brandRank}${getOrdinalSuffix(brandRank)} brand mentioned (character position ${result.firstIndex + 1}).`
+                                    : `Your domain is the ${brandRank}${getOrdinalSuffix(brandRank)} brand mentioned (character position ${result.firstIndex! + 1}).`
                                   }
                                 </p>
                                 {otherDomains.length > 0 && (
@@ -976,18 +956,13 @@ export default function Home() {
                         </div>
                       )}
 
-                      {mentioned && result.rawText && typeof result.firstIndex === "number" && (() => {
-                        const brandName = domain.split('.')[0];
-                        const contextText = extractContextAroundMention(result.rawText, result.firstIndex, domain);
+                      {hasValidMention && (() => {
+                        const contextText = extractContextAroundMention(result.rawText!, result.firstIndex!, domain);
+                        if (!contextText) return null;
 
-                        // Highlight the brand/domain in the context
-                        const highlightPattern = new RegExp(
-                          `(${domain.replace(/\./g, '\\.')}|\\*\\*${brandName}\\*\\*|${brandName})`,
-                          'gi'
-                        );
-                        const parts = contextText.split(highlightPattern);
+                        const parts = contextText.split(highlightRegex);
 
-                        return contextText ? (
+                        return (
                           <div className="mt-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-700 leading-relaxed">
                             <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-2">
                               Context
@@ -995,10 +970,11 @@ export default function Home() {
                             <p>
                               &ldquo;
                               {parts.map((part, index) => {
+                                const partLower = part?.toLowerCase();
                                 if (part && (
-                                  part.toLowerCase() === domain.toLowerCase() ||
-                                  part.toLowerCase() === brandName.toLowerCase() ||
-                                  part.toLowerCase() === `**${brandName.toLowerCase()}**`
+                                  partLower === domainLower ||
+                                  partLower === brandNameLower ||
+                                  partLower === `**${brandNameLower}**`
                                 )) {
                                   return (
                                     <span key={index} className="bg-yellow-200 font-semibold">
@@ -1011,7 +987,7 @@ export default function Home() {
                               &rdquo;
                             </p>
                           </div>
-                        ) : null;
+                        );
                       })()}
 
                       {result.rawText && (
@@ -1029,30 +1005,17 @@ export default function Home() {
                             {isExpanded ? "Hide full response" : "View full response"}
                           </button>
                           {isExpanded && (() => {
-                            // Highlight all occurrences of the domain/brand in the full response
-                            const text = result.rawText;
-
-                            // Extract brand name from domain (e.g., "tinder" from "tinder.com")
-                            const brandName = domain.split('.')[0];
-
-                            // Create regex to match both domain and brand name (case-insensitive)
-                            const searchPattern = new RegExp(
-                              `(${domain.replace(/\./g, '\\.')}|\\*\\*${brandName}\\*\\*|${brandName})`,
-                              'gi'
-                            );
-
-                            // Split text and highlight matches
-                            const parts = text.split(searchPattern);
+                            const parts = result.rawText!.split(highlightRegex);
 
                             return (
                               <div className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-700 shadow-inner">
                                 <pre className="whitespace-pre-wrap break-words font-sans text-[12px]">
                                   {parts.map((part, index) => {
-                                    // Check if this part matches our search pattern
+                                    const partLower = part?.toLowerCase();
                                     if (part && (
-                                      part.toLowerCase() === domain.toLowerCase() ||
-                                      part.toLowerCase() === brandName.toLowerCase() ||
-                                      part.toLowerCase() === `**${brandName.toLowerCase()}**`
+                                      partLower === domainLower ||
+                                      partLower === brandNameLower ||
+                                      partLower === `**${brandNameLower}**`
                                     )) {
                                       return (
                                         <mark key={index} className="bg-yellow-300 font-bold px-0.5">

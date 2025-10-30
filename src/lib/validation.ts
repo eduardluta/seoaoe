@@ -26,7 +26,7 @@ export const RunRequestSchema = z.object({
   keyword: z.string().min(1).max(120),
   domain: domainOnly,
   country: countryIso2,
-  language: languageTag,
+  language: languageTag.default("en"), // Default to English - keyword defines actual language
   email: z.string().email().optional(), // optional in v0.1
 });
 

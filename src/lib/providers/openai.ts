@@ -27,6 +27,7 @@ export async function checkWithOpenAI(input: RunRequest): Promise<ProviderRunRes
   // Lazy-load OpenAI client to avoid module-level instantiation
   const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
+    timeout: 50000, // 50 second timeout for slower providers
   });
 
   const startTime = Date.now();

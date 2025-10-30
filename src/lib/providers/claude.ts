@@ -16,6 +16,7 @@ export async function checkWithClaude(input: RunRequest): Promise<ProviderRunRes
 
   const anthropic = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY,
+    timeout: 50000, // 50 second timeout for slower providers
   });
 
   const prompt = `You are a helpful assistant answering questions about "${keyword}" for users in ${country} (language: ${language}).

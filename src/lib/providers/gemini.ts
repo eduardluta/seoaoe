@@ -24,7 +24,15 @@ Question: What are the best options for "${keyword}"?`;
 
   const startTime = Date.now();
 
-  const result = await model.generateContent(prompt);
+  // Wrap with timeout since Gemini SDK doesn't support it natively
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("Gemini API request timed out after 50s")), 50000)
+  );
+
+  const result = await Promise.race([
+    model.generateContent(prompt),
+    timeoutPromise
+  ]);
   const response = result.response;
   const rawText = response.text();
 

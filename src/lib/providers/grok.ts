@@ -19,6 +19,7 @@ export async function checkWithGrok(input: RunRequest): Promise<ProviderRunResul
   const grok = new OpenAI({
     apiKey: process.env.GROK_API_KEY,
     baseURL: "https://api.x.ai/v1",
+    timeout: 50000, // 50 second timeout for slower providers
   });
 
   const prompt = `You are a helpful assistant answering questions about "${keyword}" for users in ${country} (language: ${language}).

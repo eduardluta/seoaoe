@@ -19,6 +19,7 @@ export async function checkWithDeepSeek(input: RunRequest): Promise<ProviderRunR
   const deepseek = new OpenAI({
     apiKey: process.env.DEEPSEEK_API_KEY,
     baseURL: "https://api.deepseek.com",
+    timeout: 90000, // 90 second timeout - DeepSeek can be very slow
   });
 
   const prompt = `You are a helpful assistant answering questions about "${keyword}" for users in ${country} (language: ${language}).

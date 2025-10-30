@@ -62,134 +62,149 @@ export async function checkWithGoogleAiOverview(input: RunRequest): Promise<Prov
   const requestUrl = `https://serpapi.com/search.json?${params.toString()}`;
   const startedAt = Date.now();
 
-  const response = await fetch(requestUrl, {
-    method: "GET",
-    headers: {
-      "User-Agent": "seoaoe-bot/1.0",
-    },
-    cache: "no-store",
-  });
+  // Create AbortController for timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 50000); // 50 second timeout
 
-  const latencyMs = Date.now() - startedAt;
+  try {
+    const response = await fetch(requestUrl, {
+      method: "GET",
+      headers: {
+        "User-Agent": "seoaoe-bot/1.0",
+      },
+      cache: "no-store",
+      signal: controller.signal,
+    });
 
-  if (!response.ok) {
-    throw new Error(`SerpAPI request failed with status ${response.status}`);
-  }
+    clearTimeout(timeoutId);
 
-  const payload = (await response.json()) as SerpApiResponse;
+    const latencyMs = Date.now() - startedAt;
 
-  if (payload.error) {
-    throw new Error(`SerpAPI error: ${payload.error}`);
-  }
+    if (!response.ok) {
+      throw new Error(`SerpAPI request failed with status ${response.status}`);
+    }
 
-  const aiSnippets = Array.isArray(payload.ai_snippets) ? payload.ai_snippets : [];
-  const combinedSnippetText = aiSnippets
-    .map((snippet) => {
-      const answerText = typeof snippet.answer === "string" ? snippet.answer : "";
-      const followUps = Array.isArray(snippet.follow_up_questions)
-        ? snippet.follow_up_questions.join(". ")
-        : "";
-      const cited = Array.isArray(snippet.cited_sources)
-        ? snippet.cited_sources
-            .map((source) => [source.title, source.source, source.link].filter(Boolean).join(" – "))
-            .filter(Boolean)
-            .join("; ")
-        : "";
-      return [answerText, followUps, cited].filter(Boolean).join("\n");
-    })
-    .filter(Boolean)
-    .join("\n\n");
+    const payload = (await response.json()) as SerpApiResponse;
 
-  const rawText =
-    combinedSnippetText.length > 0 ? combinedSnippetText : JSON.stringify(aiSnippets, null, 2);
+    if (payload.error) {
+      throw new Error(`SerpAPI error: ${payload.error}`);
+    }
 
-  const domainRegex = buildDomainRegex(domain);
-  const match = domainRegex.exec(combinedSnippetText);
+    const aiSnippets = Array.isArray(payload.ai_snippets) ? payload.ai_snippets : [];
+    const combinedSnippetText = aiSnippets
+      .map((snippet) => {
+        const answerText = typeof snippet.answer === "string" ? snippet.answer : "";
+        const followUps = Array.isArray(snippet.follow_up_questions)
+          ? snippet.follow_up_questions.join(". ")
+          : "";
+        const cited = Array.isArray(snippet.cited_sources)
+          ? snippet.cited_sources
+              .map((source) => [source.title, source.source, source.link].filter(Boolean).join(" – "))
+              .filter(Boolean)
+              .join("; ")
+          : "";
+        return [answerText, followUps, cited].filter(Boolean).join("\n");
+      })
+      .filter(Boolean)
+      .join("\n\n");
 
-  let mentioned = false;
-  let snippet: string | null = null;
-  let position: number | null = null;
+    const rawText =
+      combinedSnippetText.length > 0 ? combinedSnippetText : JSON.stringify(aiSnippets, null, 2);
 
-  // Check 1: AI Overview text mentions
-  if (match) {
-    mentioned = true;
-    position = match.index;
+    const domainRegex = buildDomainRegex(domain);
+    const match = domainRegex.exec(combinedSnippetText);
 
-    const snippetStart = Math.max(0, match.index - 60);
-    const snippetEnd = Math.min(
-      combinedSnippetText.length,
-      match.index + (match[0]?.length ?? domain.length) + 60
-    );
-    snippet = `AI Overview: ...${combinedSnippetText.slice(snippetStart, snippetEnd).trim()}...`;
-  }
+    let mentioned = false;
+    let snippet: string | null = null;
+    let position: number | null = null;
 
-  // Check 2: Cited sources in AI Overview
-  if (!mentioned) {
-    const citedSources = aiSnippets.flatMap((entry) => entry.cited_sources ?? []);
-    const sourceMatch = citedSources.find((source) => {
-      if (!source.link) return false;
+    // Check 1: AI Overview text mentions
+    if (match) {
+      mentioned = true;
+      position = match.index;
+
+      const snippetStart = Math.max(0, match.index - 60);
+      const snippetEnd = Math.min(
+        combinedSnippetText.length,
+        match.index + (match[0]?.length ?? domain.length) + 60
+      );
+      snippet = `AI Overview: ...${combinedSnippetText.slice(snippetStart, snippetEnd).trim()}...`;
+    }
+
+    // Check 2: Cited sources in AI Overview
+    if (!mentioned) {
+      const citedSources = aiSnippets.flatMap((entry) => entry.cited_sources ?? []);
+      const sourceMatch = citedSources.find((source) => {
+        if (!source.link) return false;
+        try {
+          const hostname = new URL(source.link).hostname.replace(/^www\./, "");
+          return hostname.endsWith(domain);
+        } catch {
+          return source.link.includes(domain);
+        }
+      });
+
+      if (sourceMatch) {
+        mentioned = true;
+        position = null;
+        snippet = `AI Overview cited source: ${sourceMatch.title ?? sourceMatch.link ?? domain}`;
+      }
+    }
+
+    // Check 3: Organic search results (positions 1-10)
+    const organicResults = Array.isArray(payload.organic_results) ? payload.organic_results : [];
+    const organicMatch = organicResults.findIndex((result) => {
+      if (!result.link) return false;
       try {
-        const hostname = new URL(source.link).hostname.replace(/^www\./, "");
+        const hostname = new URL(result.link).hostname.replace(/^www\./, "");
         return hostname.endsWith(domain);
       } catch {
-        return source.link.includes(domain);
+        return result.link.includes(domain);
       }
     });
 
-    if (sourceMatch) {
+    if (!mentioned && organicMatch !== -1) {
       mentioned = true;
-      position = null;
-      snippet = `AI Overview cited source: ${sourceMatch.title ?? sourceMatch.link ?? domain}`;
+      position = organicMatch + 1; // 1-indexed position
+      const result = organicResults[organicMatch];
+      snippet = `Organic result #${position}: ${result.title ?? result.link ?? domain}`;
+    } else if (mentioned && organicMatch !== -1) {
+      // Already mentioned in AI Overview, but also show organic position
+      const result = organicResults[organicMatch];
+      snippet = `${snippet} | Also in organic #${organicMatch + 1}: ${result.title ?? result.link}`;
     }
+
+    // Always include top 5 organic results for context
+    const top5Results = organicResults.slice(0, 5).map((result, idx) => {
+      try {
+        const hostname = result.link ? new URL(result.link).hostname.replace(/^www\./, "") : "N/A";
+        return `#${idx + 1}: ${result.title ?? "No title"} (${hostname})`;
+      } catch {
+        return `#${idx + 1}: ${result.title ?? result.link ?? "Unknown"}`;
+      }
+    });
+
+    const enhancedRawText = [
+      "=== AI Overview ===",
+      rawText || "No AI Overview available",
+      "",
+      "=== Top 5 Organic Results ===",
+      top5Results.length > 0 ? top5Results.join("\n") : "No organic results found",
+    ].join("\n");
+
+    return {
+      mentioned,
+      position: position ?? null,
+      snippet,
+      rawText: enhancedRawText,
+      latencyMs,
+      costUsd: ESTIMATED_COST_PER_REQUEST,
+    };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error("SerpAPI request timed out after 50s");
+    }
+    throw error;
   }
-
-  // Check 3: Organic search results (positions 1-10)
-  const organicResults = Array.isArray(payload.organic_results) ? payload.organic_results : [];
-  const organicMatch = organicResults.findIndex((result) => {
-    if (!result.link) return false;
-    try {
-      const hostname = new URL(result.link).hostname.replace(/^www\./, "");
-      return hostname.endsWith(domain);
-    } catch {
-      return result.link.includes(domain);
-    }
-  });
-
-  if (!mentioned && organicMatch !== -1) {
-    mentioned = true;
-    position = organicMatch + 1; // 1-indexed position
-    const result = organicResults[organicMatch];
-    snippet = `Organic result #${position}: ${result.title ?? result.link ?? domain}`;
-  } else if (mentioned && organicMatch !== -1) {
-    // Already mentioned in AI Overview, but also show organic position
-    const result = organicResults[organicMatch];
-    snippet = `${snippet} | Also in organic #${organicMatch + 1}: ${result.title ?? result.link}`;
-  }
-
-  // Always include top 5 organic results for context
-  const top5Results = organicResults.slice(0, 5).map((result, idx) => {
-    try {
-      const hostname = result.link ? new URL(result.link).hostname.replace(/^www\./, "") : "N/A";
-      return `#${idx + 1}: ${result.title ?? "No title"} (${hostname})`;
-    } catch {
-      return `#${idx + 1}: ${result.title ?? result.link ?? "Unknown"}`;
-    }
-  });
-
-  const enhancedRawText = [
-    "=== AI Overview ===",
-    rawText || "No AI Overview available",
-    "",
-    "=== Top 5 Organic Results ===",
-    top5Results.length > 0 ? top5Results.join("\n") : "No organic results found",
-  ].join("\n");
-
-  return {
-    mentioned,
-    position: position ?? null,
-    snippet,
-    rawText: enhancedRawText,
-    latencyMs,
-    costUsd: ESTIMATED_COST_PER_REQUEST,
-  };
 }

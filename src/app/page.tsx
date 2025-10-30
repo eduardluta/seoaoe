@@ -245,24 +245,64 @@ function getRankBadgeColor(rank: number): string {
 }
 
 // Combined function to extract competitors and calculate ranking in one pass
+// Optimized for performance with fewer regex passes and early exits
 function analyzeBrandPosition(text: string, targetIndex: number): { ranking: number; competitors: string[] } {
   const textBeforeTarget = text.substring(0, targetIndex);
-  const domainRegex = /\b([a-z0-9-]+\.(?:com|de|net|org|co|io|app|ai|ch|fr|it|nl|uk|eu))\b/gi;
+
+  // Ambiguous brands that need context validation
+  const ambiguousBrands = new Set(['match', 'wish', 'apple', 'amazon', 'target', 'mint', 'chase', 'discover', 'zoom', 'slack', 'meet']);
+
+  // Skip common words
+  const skipWords = new Set(['the', 'and', 'for', 'with', 'you', 'your', 'this', 'that', 'best', 'tips', 'also', 'make', 'find', 'help']);
 
   const seenBrands = new Set<string>();
   const uniqueDomains: string[] = [];
+
+  // Helper to add brand if not seen
+  const addBrand = (name: string) => {
+    if (!seenBrands.has(name)) {
+      seenBrands.add(name);
+      uniqueDomains.push(`${name}.com`);
+      return true;
+    }
+    return false;
+  };
+
+  // Pattern 1: Explicit .com domains (highest confidence)
+  const domainMatches = textBeforeTarget.matchAll(/\b([a-z]{3,})\.com\b/gi);
+  for (const match of domainMatches) {
+    const brand = match[1].toLowerCase();
+    if (!skipWords.has(brand)) addBrand(brand);
+  }
+
+  // Pattern 2: Combined list + emphasis detection (one pass)
+  // Matches: "1. Brand", "- Brand", "**Brand**", "Brand"
+  const combinedRegex = /(?:(?:^|\n)\s*(?:\d+[\.)]+|[-*•])\s*\*?\*?|[\*"_]{1,2})([A-Z][a-z]{2,}(?:[A-Z][a-z]+)*)(?:\*?\*?|[\*"_]{1,2})?/gm;
+
   let match;
+  while ((match = combinedRegex.exec(textBeforeTarget)) !== null) {
+    const brand = match[1].toLowerCase();
 
-  // Single regex pass to get both ranking and competitors
-  while ((match = domainRegex.exec(textBeforeTarget)) !== null) {
-    const domain = match[1].toLowerCase();
-    if (!domain.includes('example.') && !domain.includes('test.')) {
-      const brandName = domain.split('.')[0];
+    // Skip if already seen, too short, or common word
+    if (seenBrands.has(brand) || brand.length < 3 || skipWords.has(brand)) continue;
 
-      if (!seenBrands.has(brandName)) {
-        seenBrands.add(brandName);
-        uniqueDomains.push(domain);
-      }
+    // Non-ambiguous brands: add immediately
+    if (!ambiguousBrands.has(brand)) {
+      addBrand(brand);
+      continue;
+    }
+
+    // Ambiguous brands: quick context check (60 chars after match)
+    const contextEnd = Math.min(textBeforeTarget.length, match.index + match[0].length + 60);
+    const context = textBeforeTarget.substring(match.index, contextEnd);
+
+    // Check for brand indicators vs verb indicators
+    const hasBrandContext = /\.com|app\b|site|platform|dating|website/i.test(context);
+    const hasVerbContext = /\s+(you|with|your|users|people|based)\b/i.test(context);
+
+    // Add if brand context present and verb context absent
+    if (hasBrandContext || !hasVerbContext) {
+      addBrand(brand);
     }
   }
 
@@ -484,7 +524,7 @@ export default function Home() {
         Number(json.providers_expected) || Number(json.providersExpected) || PROVIDER_ORDER.length;
       setExpectedProviders(initialExpected);
       let attempts = 0;
-      const maxAttempts = 40;
+      const maxAttempts = 100; // Extended to 100 seconds for DeepSeek which can be very slow
 
       const fetchResults = async () => {
         const resultRes = await fetch(`/api/run/${currentRunId}`);

@@ -19,6 +19,7 @@ export async function checkWithPerplexity(input: RunRequest): Promise<ProviderRu
   const perplexity = new OpenAI({
     apiKey: process.env.PERPLEXITY_API_KEY,
     baseURL: "https://api.perplexity.ai",
+    timeout: 50000, // 50 second timeout for slower providers
   });
 
   const prompt = `You are a helpful assistant answering questions about "${keyword}" for users in ${country} (language: ${language}).

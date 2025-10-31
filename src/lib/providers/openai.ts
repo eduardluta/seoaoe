@@ -42,7 +42,7 @@ User language: ${language}
 
 Please provide a comprehensive answer about "${keyword}" that would be most relevant for someone in ${country}. Include specific recommendations, companies, services, or websites that would be helpful for this query. Be natural and conversational.`;
 
-    const completion = await openai.chat.completions.create({
+    const stream = await openai.chat.completions.create({
       model: "gpt-4o-mini", // Using cost-effective model for MVP
       messages: [
         {
@@ -56,23 +56,49 @@ Please provide a comprehensive answer about "${keyword}" that would be most rele
       ],
       temperature: 0.7,
       max_tokens: 1000,
+      stream: true,
+      stream_options: { include_usage: true },
     });
 
-    const latencyMs = Date.now() - startTime;
-    const rawText = completion.choices[0]?.message?.content || "";
+    let rawText = "";
+    let tokensUsed: number | null = null;
+    let inputTokens = 0;
+    let outputTokens = 0;
+    const domainRegex = buildDomainRegex(domain);
+    let foundEarly = false;
+    let earlyMatch: RegExpExecArray | null = null;
 
-    // Extract token usage from response
-    const tokensUsed = completion.usage?.total_tokens || null;
+    // Process stream and check for domain mention as tokens arrive
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content || "";
+      rawText += content;
+
+      // Check if we found the domain mention (early exit optimization)
+      if (!foundEarly && rawText.length > domain.length) {
+        const match = domainRegex.exec(rawText);
+        if (match) {
+          foundEarly = true;
+          earlyMatch = match;
+          // Continue streaming to get token usage, but we found what we need
+        }
+      }
+
+      // Extract usage info from final chunk
+      if (chunk.usage) {
+        tokensUsed = chunk.usage.total_tokens;
+        inputTokens = chunk.usage.prompt_tokens || 0;
+        outputTokens = chunk.usage.completion_tokens || 0;
+      }
+    }
+
+    const latencyMs = Date.now() - startTime;
 
     // Calculate cost for GPT-4o-mini
     // Pricing: $0.150 per 1M input tokens, $0.600 per 1M output tokens
-    const inputTokens = completion.usage?.prompt_tokens || 0;
-    const outputTokens = completion.usage?.completion_tokens || 0;
     const costUsd = (inputTokens * 0.15 / 1_000_000) + (outputTokens * 0.60 / 1_000_000);
 
-    // Use regex to validate if domain is actually mentioned (anti-hallucination)
-    const domainRegex = buildDomainRegex(domain);
-    const match = domainRegex.exec(rawText);
+    // Use the early match if found, otherwise check final text
+    const match = earlyMatch || domainRegex.exec(rawText);
 
     if (match) {
       // Domain was mentioned - find position and extract snippet

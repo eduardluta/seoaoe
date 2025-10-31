@@ -1,7 +1,6 @@
 import type { RunRequest } from "../validation";
 import { checkWithOpenAI } from "./openai";
 import { checkWithGrok } from "./grok";
-import { checkWithDeepSeek } from "./deepseek";
 import { checkWithPerplexity } from "./perplexity";
 import { checkWithGemini } from "./gemini";
 import { checkWithClaude } from "./claude";
@@ -28,7 +27,6 @@ export type ProviderConfig = {
 export const PROVIDERS: ProviderConfig[] = [
   { key: "openai", model: "gpt-4o-mini", run: checkWithOpenAI },
   { key: "grok", model: "grok-3", run: checkWithGrok },
-  { key: "deepseek", model: "deepseek-chat", run: checkWithDeepSeek },
   { key: "perplexity", model: "sonar", run: checkWithPerplexity },
   { key: "gemini", model: "gemini-2.0-flash-exp", run: checkWithGemini },
   { key: "claude", model: "claude-3-7-sonnet-20250219", run: checkWithClaude },

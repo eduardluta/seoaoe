@@ -93,7 +93,6 @@ const COUNTRIES = [
 const PROVIDER_LABELS: Record<string, string> = {
   openai: "ChatGPT",
   grok: "Grok",
-  deepseek: "DeepSeek",
   perplexity: "Perplexity",
   gemini: "Gemini",
   claude: "Claude",
@@ -107,7 +106,6 @@ const PROVIDER_ORDER = [
   "grok",
   "gemini",
   "claude",
-  "deepseek",
 ];
 
 const COMPLETED_STATUSES = new Set(["ok", "error", "timeout"]);
@@ -121,7 +119,6 @@ const LOADING_MESSAGES = [
   "Scanning Claude outputs…",
   "Reviewing Gemini answers…",
   "Checking Grok mentions…",
-  "Processing DeepSeek data…",
   "Comparing AI responses…",
   "Almost there…",
 ];
@@ -185,13 +182,23 @@ function getRankBadgeColor(rank: number): string {
 // Combined function to extract competitors and calculate ranking in one pass
 // Optimized for performance with fewer regex passes and early exits
 function analyzeBrandPosition(text: string, targetIndex: number): { ranking: number; competitors: string[] } {
+  // Find the last section header (##) before the target to limit scope
   const textBeforeTarget = text.substring(0, targetIndex);
+  const lastHeaderMatch = textBeforeTarget.match(/(?:^|\n)#{2,}\s+[^\n]+$/m);
+
+  // Only analyze brands after the last section header (same category)
+  // If no header found, use last 800 chars to avoid counting unrelated brands
+  const startIndex = lastHeaderMatch
+    ? textBeforeTarget.lastIndexOf(lastHeaderMatch[0])
+    : Math.max(0, textBeforeTarget.length - 800);
+
+  const relevantText = text.substring(startIndex, targetIndex);
 
   // Ambiguous brands that need context validation
   const ambiguousBrands = new Set(['match', 'wish', 'apple', 'amazon', 'target', 'mint', 'chase', 'discover', 'zoom', 'slack', 'meet']);
 
-  // Skip common words
-  const skipWords = new Set(['the', 'and', 'for', 'with', 'you', 'your', 'this', 'that', 'best', 'tips', 'also', 'make', 'find', 'help']);
+  // Skip common words and non-competitor platforms
+  const skipWords = new Set(['the', 'and', 'for', 'with', 'you', 'your', 'this', 'that', 'best', 'tips', 'also', 'make', 'find', 'help', 'meetup', 'eventbrite', 'timeout', 'speeddater']);
 
   const seenBrands = new Set<string>();
   const uniqueDomains: string[] = [];
@@ -206,19 +213,21 @@ function analyzeBrandPosition(text: string, targetIndex: number): { ranking: num
     return false;
   };
 
-  // Pattern 1: Explicit .com domains (highest confidence)
-  const domainMatches = textBeforeTarget.matchAll(/\b([a-z]{3,})\.com\b/gi);
+  // Pattern 1: Explicit .com/.net/.org domains (highest confidence)
+  // Also handles domains with hyphens and numbers
+  const domainMatches = relevantText.matchAll(/\b([a-z0-9-]{3,})\.(com|net|org)\b/gi);
   for (const match of domainMatches) {
-    const brand = match[1].toLowerCase();
-    if (!skipWords.has(brand)) addBrand(brand);
+    const brand = match[1].toLowerCase().replace(/-/g, '');
+    if (!skipWords.has(brand) && brand.length >= 3) addBrand(brand);
   }
 
-  // Pattern 2: Combined list + emphasis detection (one pass)
-  // Matches: "1. Brand", "- Brand", "**Brand**", "Brand"
-  const combinedRegex = /(?:(?:^|\n)\s*(?:\d+[\.)]+|[-*•])\s*\*?\*?|[\*"_]{1,2})([A-Z][a-z]{2,}(?:[A-Z][a-z]+)*)(?:\*?\*?|[\*"_]{1,2})?/gm;
+  // Pattern 2: Improved brand detection for list items and emphasized text
+  // Matches formats like: "* **Brand:**", "1. Brand:", "**Brand**", etc.
+  // Handles mixed case brands (eHarmony, OkCupid, etc.)
+  const combinedRegex = /(?:(?:^|\n)\s*(?:\d+[\.)]+|[-*•])\s+\*{0,2}|(?:^|\n)\s*\*{1,2})([A-Za-z][a-zA-Z0-9]{2,})(?:\*{0,2}\s*:|\*{1,2}(?:\s|$)|(?=\s+[-—]))/gm;
 
   let match;
-  while ((match = combinedRegex.exec(textBeforeTarget)) !== null) {
+  while ((match = combinedRegex.exec(relevantText)) !== null) {
     const brand = match[1].toLowerCase();
 
     // Skip if already seen, too short, or common word
@@ -231,8 +240,8 @@ function analyzeBrandPosition(text: string, targetIndex: number): { ranking: num
     }
 
     // Ambiguous brands: quick context check (60 chars after match)
-    const contextEnd = Math.min(textBeforeTarget.length, match.index + match[0].length + 60);
-    const context = textBeforeTarget.substring(match.index, contextEnd);
+    const contextEnd = Math.min(relevantText.length, match.index + match[0].length + 60);
+    const context = relevantText.substring(match.index, contextEnd);
 
     // Check for brand indicators vs verb indicators
     const hasBrandContext = /\.com|app\b|site|platform|dating|website/i.test(context);

@@ -15,7 +15,12 @@ export async function checkWithGemini(input: RunRequest): Promise<ProviderRunRes
   }
 
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.0-flash-exp",
+    generationConfig: {
+      maxOutputTokens: 1000,
+    }
+  });
 
   const prompt = `You are a helpful assistant answering questions about "${keyword}" for users in ${country} (language: ${language}).
 Provide a comprehensive answer that includes relevant companies, websites, and services when appropriate.
@@ -29,13 +34,35 @@ Question: What are the best options for "${keyword}"?`;
     setTimeout(() => reject(new Error("Gemini API request timed out after 50s")), 50000)
   );
 
-  const result = await Promise.race([
-    model.generateContent(prompt),
+  const streamResult = await Promise.race([
+    model.generateContentStream(prompt),
     timeoutPromise
   ]);
-  const response = result.response;
-  const rawText = response.text();
 
+  let rawText = "";
+  const domainRegex = buildDomainRegex(domain);
+  let foundEarly = false;
+  let earlyMatch: RegExpExecArray | null = null;
+  let tokensUsed: number | null = null;
+  let inputTokens = 0;
+  let outputTokens = 0;
+
+  // Process stream and check for domain mention as tokens arrive
+  for await (const chunk of streamResult.stream) {
+    const content = chunk.text();
+    rawText += content;
+
+    // Check if we found the domain mention (early detection)
+    if (!foundEarly && rawText.length > domain.length) {
+      const match = domainRegex.exec(rawText);
+      if (match) {
+        foundEarly = true;
+        earlyMatch = match;
+      }
+    }
+  }
+
+  const response = await streamResult.response;
   const latencyMs = Date.now() - startTime;
 
   // Gemini pricing for gemini-2.0-flash-exp (as of 2025):
@@ -43,14 +70,13 @@ Question: What are the best options for "${keyword}"?`;
   // For paid tier: $0.075/1M input tokens, $0.30/1M output tokens
   // Since we're likely using free tier, cost is $0
   // For production, you'd use: response.usageMetadata to get token counts
-  const tokensUsed = (response.usageMetadata?.totalTokenCount) || null;
-  const inputTokens = response.usageMetadata?.promptTokenCount || 0;
-  const outputTokens = response.usageMetadata?.candidatesTokenCount || 0;
+  tokensUsed = (response.usageMetadata?.totalTokenCount) || null;
+  inputTokens = response.usageMetadata?.promptTokenCount || 0;
+  outputTokens = response.usageMetadata?.candidatesTokenCount || 0;
   const costUsd = (inputTokens * 0.075 / 1_000_000) + (outputTokens * 0.30 / 1_000_000);
 
-  // Use regex to validate domain mention
-  const domainRegex = buildDomainRegex(domain);
-  const match = domainRegex.exec(rawText);
+  // Use the early match if found, otherwise check final text
+  const match = earlyMatch || domainRegex.exec(rawText);
 
   if (match) {
     const position = match.index;

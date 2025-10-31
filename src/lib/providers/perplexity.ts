@@ -29,7 +29,7 @@ Question: What are the best options for "${keyword}"?`;
 
   const startTime = Date.now();
 
-  const completion = await perplexity.chat.completions.create({
+  const stream = await perplexity.chat.completions.create({
     model: "sonar", // Perplexity's main model with online search
     messages: [
       {
@@ -43,19 +43,42 @@ Question: What are the best options for "${keyword}"?`;
     ],
     temperature: 0.7,
     max_tokens: 1000,
+    stream: true,
   });
 
-  const latencyMs = Date.now() - startTime;
-  const rawText = completion.choices[0]?.message?.content || "";
+  let rawText = "";
+  let tokensUsed: number | null = null;
+  const domainRegex = buildDomainRegex(domain);
+  let foundEarly = false;
+  let earlyMatch: RegExpExecArray | null = null;
 
-  // Extract token usage and calculate cost
+  // Process stream and check for domain mention as tokens arrive
+  for await (const chunk of stream) {
+    const content = chunk.choices[0]?.delta?.content || "";
+    rawText += content;
+
+    // Check if we found the domain mention (early exit optimization)
+    if (!foundEarly && rawText.length > domain.length) {
+      const match = domainRegex.exec(rawText);
+      if (match) {
+        foundEarly = true;
+        earlyMatch = match;
+      }
+    }
+
+    // Extract usage info if available
+    if (chunk.usage) {
+      tokensUsed = chunk.usage.total_tokens;
+    }
+  }
+
+  const latencyMs = Date.now() - startTime;
+
   // Perplexity pricing: $0.005 per request (sonar model as of 2025)
-  const tokensUsed = completion.usage?.total_tokens || null;
   const costUsd = 0.005; // Fixed cost per request
 
-  // Use regex to validate domain mention
-  const domainRegex = buildDomainRegex(domain);
-  const match = domainRegex.exec(rawText);
+  // Use the early match if found, otherwise check final text
+  const match = earlyMatch || domainRegex.exec(rawText);
 
   if (match) {
     const position = match.index;

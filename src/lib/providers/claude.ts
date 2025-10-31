@@ -26,7 +26,7 @@ Question: What are the best options for "${keyword}"?`;
 
   const startTime = Date.now();
 
-  const message = await anthropic.messages.create({
+  const stream = await anthropic.messages.stream({
     model: "claude-3-7-sonnet-20250219",
     max_tokens: 1000,
     messages: [
@@ -37,24 +37,40 @@ Question: What are the best options for "${keyword}"?`;
     ],
   });
 
+  let rawText = "";
+  const domainRegex = buildDomainRegex(domain);
+  let foundEarly = false;
+  let earlyMatch: RegExpExecArray | null = null;
+
+  // Process stream and check for domain mention as tokens arrive
+  for await (const chunk of stream) {
+    if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
+      const content = chunk.delta.text;
+      rawText += content;
+
+      // Check if we found the domain mention (early detection)
+      if (!foundEarly && rawText.length > domain.length) {
+        const match = domainRegex.exec(rawText);
+        if (match) {
+          foundEarly = true;
+          earlyMatch = match;
+        }
+      }
+    }
+  }
+
+  const message = await stream.finalMessage();
   const latencyMs = Date.now() - startTime;
 
-  // Extract text from response
-  const rawText = message.content
-    .filter((block) => block.type === "text")
-    .map((block) => (block as { type: "text"; text: string }).text)
-    .join("\n");
-
-  // Claude pricing for claude-3-5-sonnet-20241022 (as of 2025):
+  // Claude pricing for claude-3-7-sonnet-20250219 (as of 2025):
   // $3.00/1M input tokens, $15.00/1M output tokens
   const tokensUsed = (message.usage.input_tokens || 0) + (message.usage.output_tokens || 0);
   const inputTokens = message.usage.input_tokens || 0;
   const outputTokens = message.usage.output_tokens || 0;
   const costUsd = (inputTokens * 3.0 / 1_000_000) + (outputTokens * 15.0 / 1_000_000);
 
-  // Use regex to validate domain mention
-  const domainRegex = buildDomainRegex(domain);
-  const match = domainRegex.exec(rawText);
+  // Use the early match if found, otherwise check final text
+  const match = earlyMatch || domainRegex.exec(rawText);
 
   if (match) {
     const position = match.index;

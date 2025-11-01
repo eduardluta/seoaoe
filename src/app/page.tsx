@@ -253,6 +253,19 @@ function analyzeBrandPosition(text: string, targetIndex: number): { ranking: num
     }
   }
 
+  // Pattern 3: Markdown table cells
+  // Matches formats like: "| **Brand** |" or "| Brand |"
+  const tableRegex = /\|\s*\*{0,2}([A-Za-z][a-zA-Z0-9-]{2,})\*{0,2}\s*\|/gm;
+
+  while ((match = tableRegex.exec(relevantText)) !== null) {
+    const brand = match[1].toLowerCase().replace(/-/g, '');
+
+    // Skip if already seen, too short, or common word
+    if (seenBrands.has(brand) || brand.length < 3 || skipWords.has(brand)) continue;
+
+    addBrand(brand);
+  }
+
   return {
     ranking: seenBrands.size + 1,
     competitors: uniqueDomains

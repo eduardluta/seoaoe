@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { prisma } from "./prisma";
+import { generateEmailHTML as generateEmailHTMLTemplate, generateProviderCard } from "./emailTemplate";
 
 // Initialize Resend
 const resend = process.env.RESEND_API_KEY
@@ -65,18 +66,62 @@ function extractError(rawResponse: unknown): string | null {
 
 function extractDomainsMentionedBefore(text: string, targetIndex: number): string[] {
   const textBefore = text.substring(0, targetIndex);
-  const domainRegex = /\b([a-z0-9-]+\.(?:com|de|net|org|co|io|app|ai|ch|fr|it|nl|uk|eu))\b/gi;
-  const domains = new Set<string>();
-  let match;
 
-  while ((match = domainRegex.exec(textBefore)) !== null) {
-    const domain = match[1].toLowerCase();
-    if (!domain.includes('example.') && !domain.includes('test.')) {
-      domains.add(domain);
+  // Find the last section header to limit scope (same as frontend)
+  const lastHeaderMatch = textBefore.match(/(?:^|\n)#{2,}\s+[^\n]+$/m);
+  const startIndex = lastHeaderMatch
+    ? textBefore.lastIndexOf(lastHeaderMatch[0])
+    : Math.max(0, textBefore.length - 800);
+
+  const relevantText = text.substring(startIndex, targetIndex);
+
+  const seenBrands = new Set<string>();
+  const skipWords = new Set(['the', 'and', 'for', 'with', 'you', 'your', 'this', 'that', 'best', 'tips', 'also', 'make', 'find', 'help', 'meetup', 'eventbrite', 'timeout', 'speeddater']);
+  const ambiguousBrands = new Set(['match', 'wish', 'apple', 'amazon', 'target', 'mint', 'chase', 'discover', 'zoom', 'slack', 'meet']);
+
+  // Pattern 1: Explicit domains with TLDs
+  const domainMatches = relevantText.matchAll(/\b([a-z0-9-]{3,})\.(com|de|net|org|co|io|app|ai|ch|fr|it|nl|uk|eu)\b/gi);
+  for (const match of domainMatches) {
+    const brand = match[1].toLowerCase().replace(/-/g, '');
+    if (!skipWords.has(brand) && !brand.includes('example') && !brand.includes('test') && brand.length >= 3) {
+      seenBrands.add(`${brand}.${match[2].toLowerCase()}`);
     }
   }
 
-  return Array.from(domains);
+  // Pattern 2: Markdown table cells (like | **Brand** |)
+  const tableRegex = /\|\s*\*{0,2}([A-Za-z][a-zA-Z0-9-]{2,})\*{0,2}\s*\|/gm;
+  let match;
+  while ((match = tableRegex.exec(relevantText)) !== null) {
+    const brand = match[1].toLowerCase().replace(/-/g, '');
+    if (!skipWords.has(brand) && brand.length >= 3) {
+      seenBrands.add(`${brand}.com`);
+    }
+  }
+
+  // Pattern 3: List items and emphasized text
+  const combinedRegex = /(?:(?:^|\n)\s*(?:\d+[\.)]+|[-*•])\s+\*{0,2}|(?:^|\n)\s*\*{1,2})([A-Za-z][a-zA-Z0-9]{2,})(?:\*{0,2}\s*:|\*{1,2}(?:\s|$)|(?=\s+[-—]))/gm;
+  while ((match = combinedRegex.exec(relevantText)) !== null) {
+    const brand = match[1].toLowerCase();
+    if (seenBrands.has(`${brand}.com`) || brand.length < 3 || skipWords.has(brand)) continue;
+
+    // Non-ambiguous brands: add immediately
+    if (!ambiguousBrands.has(brand)) {
+      seenBrands.add(`${brand}.com`);
+      continue;
+    }
+
+    // Ambiguous brands: check context
+    const contextEnd = Math.min(relevantText.length, match.index + match[0].length + 60);
+    const context = relevantText.substring(match.index, contextEnd);
+    const hasBrandContext = /\.com|app\b|site|platform|dating|website/i.test(context);
+    const hasVerbContext = /\s+(you|with|your|users|people|based)\b/i.test(context);
+
+    if (hasBrandContext || !hasVerbContext) {
+      seenBrands.add(`${brand}.com`);
+    }
+  }
+
+  return Array.from(seenBrands);
 }
 
 function generateEmailHTML(data: EmailData): string {
@@ -114,6 +159,56 @@ function generateEmailHTML(data: EmailData): string {
     return 0;
   });
 
+  // Generate provider cards
+  const providerCards = sortedResults.map(result => {
+    const providerName = providerNames[result.provider] || result.provider;
+    const isMentioned = result.status === 'ok' && result.mentioned;
+    const isError = result.status !== 'ok';
+
+    const statusBadgeColor = isMentioned ? '#10b981' : isError ? '#f59e0b' : '#ef4444';
+    const statusBadgeText = isMentioned ? '✓ MENTIONED' : isError ? '⚠ ERROR' : '✗ NOT FOUND';
+
+    const answer = extractAnswer(result.rawResponse);
+    const error = extractError(result.rawResponse);
+    const hasPosition = typeof result.firstIndex === 'number' && result.firstIndex >= 0;
+
+    let competitors: string[] = [];
+    if (isMentioned && hasPosition && answer) {
+      competitors = extractDomainsMentionedBefore(answer, result.firstIndex!);
+    }
+
+    const snippet = isMentioned && (result.evidence || answer)
+      ? escapeHtml((result.evidence || answer || '').substring(0, 250)) + ((result.evidence || answer || '').length > 250 ? '...' : '')
+      : null;
+
+    return generateProviderCard({
+      providerName: escapeHtml(providerName),
+      statusBadgeColor,
+      statusBadgeText,
+      isMentioned,
+      position: hasPosition ? result.firstIndex : null,
+      competitorCount: competitors.length,
+      competitors: escapeHtml(competitors.join(', ')),
+      snippet,
+      errorMessage: error ? escapeHtml(error) : null,
+    });
+  }).join('\n');
+
+  return generateEmailHTMLTemplate({
+    keyword: escapeHtml(keyword),
+    domain: escapeHtml(domain),
+    score,
+    mentionCount,
+    totalProviders,
+    providerCards,
+    scoreColor: getScoreColor(score),
+    scoreMessage: getScoreMessage(score),
+  });
+}
+
+// Keep old function for backward compatibility but not used
+function generateEmailHTMLOld(data: EmailData): string {
+  const { keyword, domain, score, mentionCount, totalProviders, results } = data;
   return `
 <!DOCTYPE html>
 <html>

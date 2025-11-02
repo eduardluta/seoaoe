@@ -75,8 +75,8 @@ export function generateEmailHTML(data: EmailTemplateData): string {
                     <!-- Score Circle -->
                     <table border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto 16px auto;">
                       <tr>
-                        <td align="center" style="width: 140px; height: 140px; background-color: #ffffff; border-radius: 50%; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);">
-                          <span class="score-number" style="font-size: 64px; font-weight: 700; color: ${scoreColor}; line-height: 140px;">${score}%</span>
+                        <td align="center" style="width: 154px; height: 154px; background-color: #ffffff; border-radius: 50%; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);">
+                          <span class="score-number" style="font-size: 64px; font-weight: 700; color: ${scoreColor}; line-height: 154px;">${score}%</span>
                         </td>
                       </tr>
                     </table>
@@ -146,9 +146,7 @@ export function generateEmailHTML(data: EmailTemplateData): string {
           <!-- Footer -->
           <tr>
             <td align="center" style="padding: 32px 30px; background-color: #f9fafb; color: #6b7280;">
-              <p style="margin: 0 0 8px 0; padding: 0; font-size: 16px; font-weight: 700; color: #111827;">SEO-AOE</p>
-              <p style="margin: 0 0 12px 0; padding: 0; font-size: 13px;">AI Visibility Checker for Google & ChatGPT Rankings</p>
-              <p style="margin: 0; padding: 0; font-size: 12px; color: #9ca3af;">This is an automated email. If you didn't request this report, you can safely ignore it.</p>
+              <p style="margin: 0; padding: 0; font-size: 16px; font-weight: 700; color: #111827;">SEO-AOE</p>
             </td>
           </tr>
 
@@ -177,36 +175,41 @@ export function generateProviderCard(data: {
   // Google Organic uses ranking position (1-10), others use character position
   const isGoogleOrganic = providerKey === 'google_organic';
 
+  // Helper to get ordinal suffix
+  const getOrdinal = (n: number) => {
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  };
+
   return `
     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 12px; border: 2px solid ${isMentioned ? '#10b981' : statusBadgeColor === '#f59e0b' ? '#f59e0b' : '#e5e7eb'}; border-radius: 10px; background-color: ${isMentioned ? '#f0fdf4' : errorMessage ? '#fffbeb' : '#ffffff'};">
       <tr>
         <td style="padding: 18px;">
-          <!-- Header Row -->
+          <!-- Header Row with Provider Name, Position Badge, and Status Badge -->
           <table border="0" cellpadding="0" cellspacing="0" width="100%">
             <tr>
-              <td>
-                <strong style="font-size: 16px; color: #111827;">${providerName}</strong>
+              <td style="vertical-align: middle; line-height: 1;">
+                <table border="0" cellpadding="0" cellspacing="0" style="display: inline-table; vertical-align: middle;">
+                  <tr>
+                    <td style="vertical-align: middle; padding-right: 8px;">
+                      <strong style="font-size: 16px; color: #111827; line-height: 1; display: inline-block; vertical-align: middle;">${providerName}</strong>
+                    </td>
+                    ${isMentioned && position !== null && position > 0 ? `
+                    <td style="vertical-align: middle;">
+                      <span style="display: inline-block; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; background-color: ${position === 1 ? '#10b981' : position <= 3 ? '#f59e0b' : '#ef4444'}; color: #ffffff; line-height: 1; white-space: nowrap;">
+                        ${isGoogleOrganic ? `🏆 #${position}` : `${getOrdinal(position)} brand`}
+                      </span>
+                    </td>
+                    ` : ''}
+                  </tr>
+                </table>
               </td>
-              <td align="right">
-                <span style="display: inline-block; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; background-color: ${statusBadgeColor}; color: #ffffff;">${statusBadgeText}</span>
+              <td align="right" style="vertical-align: middle;">
+                <span style="display: inline-block; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; background-color: ${statusBadgeColor}; color: #ffffff; line-height: 1; white-space: nowrap;">${statusBadgeText}</span>
               </td>
             </tr>
           </table>
-
-          ${isMentioned && position !== null ? `
-          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 12px;">
-            <tr>
-              <td>
-                ${isGoogleOrganic
-                  ? `<span style="display: inline-block; padding: 8px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; background-color: #10b981; color: #ffffff;">🏆 Ranked #${position}</span>
-                     <p style="margin: 8px 0 0 0; padding: 0; font-size: 12px; color: #6b7280; line-height: 1.5;">Your domain is ranked #${position} in Google's organic search results. Top 3 rankings drive the most traffic.</p>`
-                  : `<span style="display: inline-block; padding: 8px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; background-color: #10b981; color: #ffffff;">✓ Position #${position + 1}</span>
-                     <p style="margin: 8px 0 0 0; padding: 0; font-size: 12px; color: #6b7280; line-height: 1.5;">Your domain appears at character ${position + 1} of the AI's response. Lower positions = earlier mention = better visibility.</p>`
-                }
-              </td>
-            </tr>
-          </table>
-          ` : ''}
 
           ${competitorCount > 0 ? `
           <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 12px;">
@@ -222,8 +225,9 @@ export function generateProviderCard(data: {
           ${snippet ? `
           <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 12px;">
             <tr>
-              <td style="padding: 12px; background-color: #ffffff; border-radius: 6px; border-left: 3px solid ${isMentioned ? '#10b981' : '#e5e7eb'};">
-                <p style="margin: 0; padding: 0; font-size: 14px; color: #4b5563; line-height: 1.6; word-wrap: break-word;">${snippet}</p>
+              <td style="padding: 12px; background-color: #f9fafb; border-radius: 6px; border-left: 3px solid ${isMentioned ? '#10b981' : '#e5e7eb'};">
+                <p style="margin: 0 0 4px 0; padding: 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #9ca3af;">CONTEXT</p>
+                <p style="margin: 0; padding: 0; font-size: 13px; color: #374151; line-height: 1.6; word-wrap: break-word;">${snippet}</p>
               </td>
             </tr>
           </table>

@@ -682,8 +682,8 @@ function generateEmailHTMLOld(data: EmailData): string {
       <div class="providers-grid">
         ${sortedResults.map(result => {
           const providerName = providerNames[result.provider] || result.provider;
-          const isMentioned = result.status === 'ok' && result.mentioned;
-          const isNotMentioned = result.status === 'ok' && !result.mentioned;
+          const isMentioned = result.status === 'ok' && result.mentioned === true;
+          const isNotMentioned = result.status === 'ok' && result.mentioned === false;
           const isError = result.status !== 'ok';
 
           const cardClass = isMentioned ? 'mentioned' : isNotMentioned ? 'not-mentioned' : 'error';

@@ -173,8 +173,10 @@ function generateEmailHTML(data: EmailData): string {
     const error = extractError(result.rawResponse);
     const hasPosition = typeof result.firstIndex === 'number' && result.firstIndex >= 0;
 
+    // Competitor analysis only makes sense for character positions (AI responses)
+    // Skip for google_organic which uses ranking position (1-10)
     let competitors: string[] = [];
-    if (isMentioned && hasPosition && answer) {
+    if (isMentioned && hasPosition && answer && result.provider !== 'google_organic') {
       competitors = extractDomainsMentionedBefore(answer, result.firstIndex!);
     }
 
@@ -184,6 +186,7 @@ function generateEmailHTML(data: EmailData): string {
 
     return generateProviderCard({
       providerName: escapeHtml(providerName),
+      providerKey: result.provider,
       statusBadgeColor,
       statusBadgeText,
       isMentioned,

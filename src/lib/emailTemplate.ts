@@ -162,6 +162,7 @@ export function generateEmailHTML(data: EmailTemplateData): string {
 
 export function generateProviderCard(data: {
   providerName: string;
+  providerKey: string;
   statusBadgeColor: string;
   statusBadgeText: string;
   isMentioned: boolean;
@@ -171,7 +172,10 @@ export function generateProviderCard(data: {
   snippet: string | null;
   errorMessage: string | null;
 }): string {
-  const { providerName, statusBadgeColor, statusBadgeText, isMentioned, position, competitorCount, competitors, snippet, errorMessage } = data;
+  const { providerName, providerKey, statusBadgeColor, statusBadgeText, isMentioned, position, competitorCount, competitors, snippet, errorMessage } = data;
+
+  // Google Organic uses ranking position (1-10), others use character position
+  const isGoogleOrganic = providerKey === 'google_organic';
 
   return `
     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 12px; border: 2px solid ${isMentioned ? '#10b981' : statusBadgeColor === '#f59e0b' ? '#f59e0b' : '#e5e7eb'}; border-radius: 10px; background-color: ${isMentioned ? '#f0fdf4' : errorMessage ? '#fffbeb' : '#ffffff'};">
@@ -193,8 +197,12 @@ export function generateProviderCard(data: {
           <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 12px;">
             <tr>
               <td>
-                <span style="display: inline-block; padding: 8px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; background-color: #10b981; color: #ffffff;">✓ Position #${position + 1}</span>
-                <p style="margin: 8px 0 0 0; padding: 0; font-size: 12px; color: #6b7280; line-height: 1.5;">Your domain appears at character ${position + 1} of the AI's response. Lower positions = earlier mention = better visibility.</p>
+                ${isGoogleOrganic
+                  ? `<span style="display: inline-block; padding: 8px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; background-color: #10b981; color: #ffffff;">🏆 Ranked #${position}</span>
+                     <p style="margin: 8px 0 0 0; padding: 0; font-size: 12px; color: #6b7280; line-height: 1.5;">Your domain is ranked #${position} in Google's organic search results. Top 3 rankings drive the most traffic.</p>`
+                  : `<span style="display: inline-block; padding: 8px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; background-color: #10b981; color: #ffffff;">✓ Position #${position + 1}</span>
+                     <p style="margin: 8px 0 0 0; padding: 0; font-size: 12px; color: #6b7280; line-height: 1.5;">Your domain appears at character ${position + 1} of the AI's response. Lower positions = earlier mention = better visibility.</p>`
+                }
               </td>
             </tr>
           </table>

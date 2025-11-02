@@ -165,9 +165,9 @@ export async function checkWithGoogleAiOverview(input: RunRequest): Promise<Prov
 
     if (!mentioned && organicMatch !== -1) {
       mentioned = true;
-      position = organicMatch + 1; // 1-indexed position
+      position = null; // Don't set position for organic results - no character position in text
       const result = organicResults[organicMatch];
-      snippet = `Organic result #${position}: ${result.title ?? result.link ?? domain}`;
+      snippet = `Organic result #${organicMatch + 1}: ${result.title ?? result.link ?? domain}`;
     } else if (mentioned && organicMatch !== -1) {
       // Already mentioned in AI Overview, but also show organic position
       const result = organicResults[organicMatch];

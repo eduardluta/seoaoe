@@ -71,7 +71,7 @@ function extractDomainsMentionedBefore(text: string, targetIndex: number): strin
   const lastHeaderMatch = textBefore.match(/(?:^|\n)#{2,}\s+[^\n]+$/m);
   const startIndex = lastHeaderMatch
     ? textBefore.lastIndexOf(lastHeaderMatch[0])
-    : Math.max(0, textBefore.length - 800);
+    : Math.max(0, textBefore.length - 1200);
 
   const relevantText = text.substring(startIndex, targetIndex);
 

@@ -187,10 +187,10 @@ function analyzeBrandPosition(text: string, targetIndex: number): { ranking: num
   const lastHeaderMatch = textBeforeTarget.match(/(?:^|\n)#{2,}\s+[^\n]+$/m);
 
   // Only analyze brands after the last section header (same category)
-  // If no header found, use last 800 chars to avoid counting unrelated brands
+  // If no header found, use last 1200 chars to avoid counting unrelated brands
   const startIndex = lastHeaderMatch
     ? textBeforeTarget.lastIndexOf(lastHeaderMatch[0])
-    : Math.max(0, textBeforeTarget.length - 800);
+    : Math.max(0, textBeforeTarget.length - 1200);
 
   const relevantText = text.substring(startIndex, targetIndex);
 

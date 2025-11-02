@@ -97,10 +97,12 @@ const PROVIDER_LABELS: Record<string, string> = {
   gemini: "Gemini",
   claude: "Claude",
   google_ai_overview: "Google AI Overview",
+  google_organic: "Google Organic",
 };
 
 const PROVIDER_ORDER = [
   "google_ai_overview",
+  "google_organic",
   "openai",
   "perplexity",
   "grok",

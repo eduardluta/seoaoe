@@ -135,6 +135,7 @@ function generateEmailHTML(data: EmailData): string {
     gemini: 'Gemini',
     claude: 'Claude',
     google_ai_overview: 'Google AI Overview',
+    google_organic: 'Google Organic',
   };
 
   // Determine score color and message
@@ -218,6 +219,7 @@ function generateEmailText(data: EmailData): string {
     gemini: 'Gemini (Google)',
     claude: 'Claude (Anthropic)',
     google_ai_overview: 'Google AI Overview',
+    google_organic: 'Google Organic Search',
   };
 
   const resultsText = results.map(result => {

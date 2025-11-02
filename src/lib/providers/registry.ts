@@ -5,6 +5,7 @@ import { checkWithPerplexity } from "./perplexity";
 import { checkWithGemini } from "./gemini";
 import { checkWithClaude } from "./claude";
 import { checkWithGoogleAiOverview } from "./googleAiOverview";
+import { checkWithGoogleOrganic } from "./googleOrganic";
 
 export type ProviderRunResult = {
   mentioned: boolean;
@@ -31,6 +32,7 @@ export const PROVIDERS: ProviderConfig[] = [
   { key: "gemini", model: "gemini-2.0-flash-exp", run: checkWithGemini },
   { key: "claude", model: "claude-3-7-sonnet-20250219", run: checkWithClaude },
   { key: "google_ai_overview", model: "serpapi-ai-overview", run: checkWithGoogleAiOverview },
+  { key: "google_organic", model: "serpapi-organic", run: checkWithGoogleOrganic },
 ];
 
 export const PROVIDER_COUNT = PROVIDERS.length;

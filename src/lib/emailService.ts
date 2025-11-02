@@ -71,52 +71,100 @@ function extractDomainsMentionedBefore(text: string, targetIndex: number): strin
   const lastHeaderMatch = textBefore.match(/(?:^|\n)#{2,}\s+[^\n]+$/m);
   const startIndex = lastHeaderMatch
     ? textBefore.lastIndexOf(lastHeaderMatch[0])
-    : Math.max(0, textBefore.length - 800);
+    : Math.max(0, textBefore.length - 1200);
 
   const relevantText = text.substring(startIndex, targetIndex);
 
   const seenBrands = new Set<string>();
-  const skipWords = new Set(['the', 'and', 'for', 'with', 'you', 'your', 'this', 'that', 'best', 'tips', 'also', 'make', 'find', 'help', 'meetup', 'eventbrite', 'timeout', 'speeddater']);
-  const ambiguousBrands = new Set(['match', 'wish', 'apple', 'amazon', 'target', 'mint', 'chase', 'discover', 'zoom', 'slack', 'meet']);
 
-  // Pattern 1: Explicit domains with TLDs
-  const domainMatches = relevantText.matchAll(/\b([a-z0-9-]{3,})\.(com|de|net|org|co|io|app|ai|ch|fr|it|nl|uk|eu)\b/gi);
+  // Expanded skip words - generic terms that should NEVER be counted as brands
+  const skipWords = new Set([
+    'the', 'and', 'for', 'with', 'you', 'your', 'this', 'that', 'best', 'tips',
+    'also', 'make', 'find', 'help', 'meetup', 'eventbrite', 'timeout', 'speeddater',
+    'privacy', 'language', 'neutrality', 'security', 'safety', 'quality', 'features',
+    'options', 'service', 'services', 'online', 'dating', 'website', 'platform',
+    'app', 'mobile', 'social', 'network', 'community', 'profiles', 'profile'
+  ]);
+
+  // Ambiguous words that need strong brand context
+  const ambiguousBrands = new Set([
+    'match', 'wish', 'apple', 'amazon', 'target', 'mint', 'chase', 'discover',
+    'zoom', 'slack', 'meet', 'hinge'
+  ]);
+
+  // Known dating/relationship brands that can be counted without TLD if in proper context
+  const knownDatingBrands = new Set([
+    'tinder', 'bumble', 'hinge', 'okcupid', 'pof', 'eharmony', 'match',
+    'coffeemeetsbagel', 'happn', 'feeld', 'raya', 'boo', 'swissfriends'
+  ]);
+
+  // Pattern 1: EXPLICIT domains with TLDs (this is the most reliable)
+  // Expanded TLD list to include more common extensions
+  const domainMatches = relevantText.matchAll(/\b([a-z0-9-]{2,})\.(com|de|net|org|co|io|app|ai|ch|fr|it|nl|uk|eu|dating|love|singles)\b/gi);
   for (const match of domainMatches) {
     const brand = match[1].toLowerCase().replace(/-/g, '');
-    if (!skipWords.has(brand) && !brand.includes('example') && !brand.includes('test') && brand.length >= 3) {
-      seenBrands.add(`${brand}.${match[2].toLowerCase()}`);
+    const tld = match[2].toLowerCase();
+
+    // Skip generic/common words and test domains
+    if (skipWords.has(brand) || brand.includes('example') || brand.includes('test') || brand.length < 2) {
+      continue;
     }
+
+    seenBrands.add(`${brand}.${tld}`);
   }
 
-  // Pattern 2: Markdown table cells (like | **Brand** |)
-  const tableRegex = /\|\s*\*{0,2}([A-Za-z][a-zA-Z0-9-]{2,})\*{0,2}\s*\|/gm;
+  // Pattern 2: Markdown table cells - ONLY if they contain explicit TLD or are known brands
+  const tableRegex = /\|\s*\*{0,2}([A-Za-z][a-zA-Z0-9-]{2,}(?:\.[a-z]{2,})?)\*{0,2}\s*\|/gm;
   let match;
   while ((match = tableRegex.exec(relevantText)) !== null) {
-    const brand = match[1].toLowerCase().replace(/-/g, '');
-    if (!skipWords.has(brand) && brand.length >= 3) {
-      seenBrands.add(`${brand}.com`);
+    const content = match[1].toLowerCase().replace(/-/g, '');
+
+    // Check if it already has a TLD
+    if (content.includes('.')) {
+      const parts = content.split('.');
+      const brand = parts[0];
+      const tld = parts[1];
+      if (!skipWords.has(brand) && brand.length >= 2) {
+        seenBrands.add(content);
+      }
+    }
+    // Only add .com if it's a known dating brand
+    else if (knownDatingBrands.has(content) && content.length >= 3) {
+      seenBrands.add(`${content}.com`);
     }
   }
 
-  // Pattern 3: List items and emphasized text
-  const combinedRegex = /(?:(?:^|\n)\s*(?:\d+[\.)]+|[-*•])\s+\*{0,2}|(?:^|\n)\s*\*{1,2})([A-Za-z][a-zA-Z0-9]{2,})(?:\*{0,2}\s*:|\*{1,2}(?:\s|$)|(?=\s+[-—]))/gm;
-  while ((match = combinedRegex.exec(relevantText)) !== null) {
-    const brand = match[1].toLowerCase();
-    if (seenBrands.has(`${brand}.com`) || brand.length < 3 || skipWords.has(brand)) continue;
+  // Pattern 3: List items and emphasized text - MUCH MORE CONSERVATIVE
+  // Only match if followed by brand indicators or if it's a known brand
+  const listItemRegex = /(?:(?:^|\n)\s*(?:\d+[\.)]+|[-*•])\s+\*{0,2})([A-Za-z][a-zA-Z0-9-]{2,})(?:\*{0,2}\s*(?::|\(|\.com\b)|\*{1,2}(?:\s|$))/gm;
+  while ((match = listItemRegex.exec(relevantText)) !== null) {
+    const brand = match[1].toLowerCase().replace(/-/g, '');
 
-    // Non-ambiguous brands: add immediately
-    if (!ambiguousBrands.has(brand)) {
+    // Skip if already seen, too short, or generic word
+    if (seenBrands.has(`${brand}.com`) || brand.length < 3 || skipWords.has(brand)) {
+      continue;
+    }
+
+    // Get extended context (100 chars) to check for brand indicators
+    const contextStart = Math.max(0, match.index - 20);
+    const contextEnd = Math.min(relevantText.length, match.index + match[0].length + 100);
+    const context = relevantText.substring(contextStart, contextEnd);
+
+    // Check if it's a known dating brand with good context
+    if (knownDatingBrands.has(brand)) {
       seenBrands.add(`${brand}.com`);
       continue;
     }
 
-    // Ambiguous brands: check context
-    const contextEnd = Math.min(relevantText.length, match.index + match[0].length + 60);
-    const context = relevantText.substring(match.index, contextEnd);
-    const hasBrandContext = /\.com|app\b|site|platform|dating|website/i.test(context);
-    const hasVerbContext = /\s+(you|with|your|users|people|based)\b/i.test(context);
+    // For unknown brands, require VERY strong evidence
+    const hasExplicitDomain = /\.com\b|\.de\b|\.ch\b|\.net\b|\.app\b|\.io\b/i.test(context);
+    const hasStrongBrandContext = /\b(app|website|site|platform|service)\b/i.test(context);
+    const hasGenericContext = /\b(privacy|security|features|quality|language|neutrality|safety|tips|options|best)\b/i.test(context);
 
-    if (hasBrandContext || !hasVerbContext) {
+    // Only add if explicit domain mention OR (strong brand context AND NOT generic context)
+    if (hasExplicitDomain) {
+      seenBrands.add(`${brand}.com`);
+    } else if (hasStrongBrandContext && !hasGenericContext && !ambiguousBrands.has(brand)) {
       seenBrands.add(`${brand}.com`);
     }
   }
@@ -135,6 +183,7 @@ function generateEmailHTML(data: EmailData): string {
     gemini: 'Gemini',
     claude: 'Claude',
     google_ai_overview: 'Google AI Overview',
+    google_organic: 'Google Organic',
   };
 
   // Determine score color and message
@@ -145,9 +194,9 @@ function generateEmailHTML(data: EmailData): string {
   };
 
   const getScoreMessage = (score: number) => {
-    if (score >= 70) return 'Excellent visibility! Your domain is well-represented across AI engines.';
-    if (score >= 40) return 'Good start! Consider optimizing content to improve AI visibility.';
-    return 'Low visibility. Focus on creating AI-friendly content to improve rankings.';
+    if (score >= 70) return 'Excellent visibility! Your domain is well-represented across Google & AI engines.';
+    if (score >= 40) return 'Good start! Consider optimizing content to improve Google & AI visibility.';
+    return 'Low visibility. Focus on creating content optimized for Google & AI engines to improve rankings.';
   };
 
   // Sort results: mentioned first, then not mentioned, then errors
@@ -172,21 +221,74 @@ function generateEmailHTML(data: EmailData): string {
     const error = extractError(result.rawResponse);
     const hasPosition = typeof result.firstIndex === 'number' && result.firstIndex >= 0;
 
+    // Competitor analysis and brand ranking calculation
+    // Skip for google_organic which uses ranking position (1-10)
     let competitors: string[] = [];
-    if (isMentioned && hasPosition && answer) {
+    let brandRanking: number | null = null;
+    if (isMentioned && hasPosition && answer && result.provider !== 'google_organic') {
       competitors = extractDomainsMentionedBefore(answer, result.firstIndex!);
+      brandRanking = competitors.length + 1; // Ranking = number of competitors before + 1
+    } else if (isMentioned && hasPosition && result.provider === 'google_organic') {
+      // For Google Organic, firstIndex is already the ranking (1-10)
+      brandRanking = result.firstIndex!;
     }
 
-    const snippet = isMentioned && (result.evidence || answer)
-      ? escapeHtml((result.evidence || answer || '').substring(0, 250)) + ((result.evidence || answer || '').length > 250 ? '...' : '')
-      : null;
+    // Extract full paragraph for better context
+    let snippet: string | null = null;
+    if (isMentioned && (result.evidence || answer)) {
+      const fullText = result.evidence || answer || '';
+      const mentionIndex = fullText.toLowerCase().indexOf(domain.toLowerCase());
+
+      if (mentionIndex >= 0) {
+        // Find paragraph boundaries around the mention
+        let start = mentionIndex;
+        let end = mentionIndex + domain.length;
+
+        // Look backward for paragraph start (newline + bullet, number, or double newline)
+        for (let i = mentionIndex - 1; i >= 0; i--) {
+          if (fullText[i] === '\n') {
+            const nextChar = fullText[i + 1];
+            if (nextChar === '\n' || nextChar === '-' || nextChar === '*' || /\d/.test(nextChar)) {
+              start = i + 1;
+              break;
+            }
+          }
+          if (mentionIndex - i > 650) {  // Increased from 500 to 650 (30% more)
+            start = i;
+            break;
+          }
+        }
+
+        // Look forward for paragraph end (period + space/newline, or double newline)
+        for (let i = end; i < fullText.length; i++) {
+          if (fullText[i] === '.' && (i + 1 >= fullText.length || fullText[i + 1] === '\n' || fullText[i + 1] === ' ')) {
+            end = i + 1;
+            break;
+          }
+          if (fullText[i] === '\n' && i + 1 < fullText.length && fullText[i + 1] === '\n') {
+            end = i;
+            break;
+          }
+          if (i - mentionIndex > 780) {  // Increased from 600 to 780 (30% more)
+            end = i;
+            break;
+          }
+        }
+
+        snippet = escapeHtml(fullText.substring(start, end).trim().replace(/^[-*•\d.)\s]+/, ''));
+      } else {
+        // Fallback if domain not found in text
+        snippet = escapeHtml(fullText.substring(0, 400)) + (fullText.length > 400 ? '...' : '');
+      }
+    }
 
     return generateProviderCard({
       providerName: escapeHtml(providerName),
+      providerKey: result.provider,
       statusBadgeColor,
       statusBadgeText,
       isMentioned,
-      position: hasPosition ? result.firstIndex! : null,
+      position: brandRanking, // Pass the calculated brand ranking, not character position
       competitorCount: competitors.length,
       competitors: escapeHtml(competitors.join(', ')),
       snippet,
@@ -218,6 +320,7 @@ function generateEmailText(data: EmailData): string {
     gemini: 'Gemini (Google)',
     claude: 'Claude (Anthropic)',
     google_ai_overview: 'Google AI Overview',
+    google_organic: 'Google Organic Search',
   };
 
   const resultsText = results.map(result => {
@@ -312,7 +415,7 @@ export async function sendReportEmail(data: EmailData): Promise<void> {
     await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL as string,
       to: data.email,
-      subject: `Your AI SEO Ranking Report for "${data.keyword}"`,
+      subject: `seoaoe.com - AI SEO Ranking Report`,
       text: generateEmailText(data),
       html: generateEmailHTML(data),
     });

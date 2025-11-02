@@ -97,10 +97,12 @@ const PROVIDER_LABELS: Record<string, string> = {
   gemini: "Gemini",
   claude: "Claude",
   google_ai_overview: "Google AI Overview",
+  google_organic: "Google Organic",
 };
 
 const PROVIDER_ORDER = [
   "google_ai_overview",
+  "google_organic",
   "openai",
   "perplexity",
   "grok",
@@ -187,10 +189,10 @@ function analyzeBrandPosition(text: string, targetIndex: number): { ranking: num
   const lastHeaderMatch = textBeforeTarget.match(/(?:^|\n)#{2,}\s+[^\n]+$/m);
 
   // Only analyze brands after the last section header (same category)
-  // If no header found, use last 800 chars to avoid counting unrelated brands
+  // If no header found, use last 1200 chars to avoid counting unrelated brands
   const startIndex = lastHeaderMatch
     ? textBeforeTarget.lastIndexOf(lastHeaderMatch[0])
-    : Math.max(0, textBeforeTarget.length - 800);
+    : Math.max(0, textBeforeTarget.length - 1200);
 
   const relevantText = text.substring(startIndex, targetIndex);
 
@@ -785,7 +787,7 @@ export default function Home() {
                                   <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                   </svg>
-                                  {brandRank}{getOrdinalSuffix(brandRank)} brand · Character #{result.firstIndex + 1}
+                                  {brandRank}{getOrdinalSuffix(brandRank)} brand
                                 </span>
                               );
                             })()}
@@ -940,7 +942,7 @@ export default function Home() {
                               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
-                              {brandAnalysis.ranking}{getOrdinalSuffix(brandAnalysis.ranking)} brand · Character #{result.firstIndex! + 1}
+                              {brandAnalysis.ranking}{getOrdinalSuffix(brandAnalysis.ranking)} brand
                             </span>
                           )}
                         </div>
@@ -959,7 +961,7 @@ export default function Home() {
                                 <p className="text-xs text-slate-600">
                                   {brandRank === 1
                                     ? `🎉 Your domain is the first brand mentioned in this response!`
-                                    : `Your domain is the ${brandRank}${getOrdinalSuffix(brandRank)} brand mentioned (character position ${result.firstIndex! + 1}).`
+                                    : `Your domain is the ${brandRank}${getOrdinalSuffix(brandRank)} brand mentioned.`
                                   }
                                 </p>
                                 {otherDomains.length > 0 && (
@@ -1071,7 +1073,13 @@ export default function Home() {
                   <p className="text-sm text-slate-600 mb-4">
                     Enter your email to instantly receive a PDF report with detailed analysis
                   </p>
-                  <div className="flex gap-3">
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleSaveEmail();
+                    }}
+                    className="flex gap-3"
+                  >
                     <input
                       type="email"
                       placeholder="your@email.com"
@@ -1081,13 +1089,13 @@ export default function Home() {
                       className="flex-1 h-12 rounded-lg border-2 border-amber-500 bg-white px-4 text-base text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-amber-600 focus:ring-2 focus:ring-amber-200"
                     />
                     <button
-                      onClick={handleSaveEmail}
+                      type="submit"
                       disabled={emailSaving || !email.trim()}
                       className="h-12 px-6 rounded-lg bg-amber-500 text-white font-semibold transition hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {emailSaving ? "Sending..." : "Send Report"}
                     </button>
-                  </div>
+                  </form>
                 </div>
               )}
 

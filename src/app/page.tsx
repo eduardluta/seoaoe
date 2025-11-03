@@ -604,7 +604,7 @@ export default function Home() {
   return (
     <div className="min-h-[100svh]">
       {/* Black upper section with hero and form */}
-      <div className="-mb-48 w-full bg-gradient-to-br from-neutral-950 to-black pb-48 pt-28 text-white sm:pt-32">
+      <div className="-mb-48 w-full bg-black pb-48 pt-28 text-white sm:pt-32">
         <div className="mx-auto w-full max-w-3xl px-6">
           {/* Header */}
           <div className="mb-12 text-center">
@@ -683,7 +683,7 @@ export default function Home() {
       </div>
 
       {/* Lower section for results */}
-      <div className="w-full bg-gradient-to-br from-neutral-950 to-black pb-16 pt-12">
+      <div className="w-full bg-black pb-16 pt-12">
         <div className="mx-auto w-full max-w-3xl px-6">
 
           {/* Loading State */}
@@ -693,13 +693,13 @@ export default function Home() {
                 {/* Spinner */}
                 <div className="flex flex-col items-center justify-center space-y-6">
                   <div className="relative">
-                    <div className="h-16 w-16 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900"></div>
+                    <div className="h-16 w-16 animate-spin rounded-full border-4 border-slate-200 border-t-black"></div>
                     <div className="absolute inset-0 h-16 w-16 animate-pulse rounded-full border-4 border-slate-100 opacity-25"></div>
                   </div>
 
                   {/* Status Message */}
                   <div className="text-center">
-                    <p className="text-lg font-semibold text-slate-900 mb-2">
+                    <p className="text-lg font-semibold text-black mb-2">
                       {statusMessage || "Processing your request..."}
                     </p>
                     <p className="text-sm text-slate-500">
@@ -716,7 +716,7 @@ export default function Home() {
                       </div>
                       <div className="w-full bg-slate-200 rounded-full h-2">
                         <div
-                          className="bg-slate-900 h-2 rounded-full transition-all duration-300"
+                          className="bg-black h-2 rounded-full transition-all duration-300"
                           style={{ width: `${(processedCount / expectedProviders) * 100}%` }}
                         ></div>
                       </div>
@@ -746,7 +746,7 @@ export default function Home() {
                           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                             <div className="flex items-center gap-3">
                               <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-200 border-t-blue-600"></div>
-                              <p className="text-sm font-semibold text-slate-900">
+                              <p className="text-sm font-semibold text-black">
                                 {providerLabel}
                               </p>
                             </div>
@@ -767,7 +767,7 @@ export default function Home() {
                       isSuccess && mentioned
                         ? "bg-emerald-100 text-emerald-700"
                         : isSuccess
-                        ? "bg-slate-100 text-slate-600"
+                        ? "bg-red-100 text-red-700"
                         : "bg-yellow-100 text-yellow-700";
 
                     return (
@@ -777,7 +777,7 @@ export default function Home() {
                       >
                         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-sm font-semibold text-slate-900">
+                            <p className="text-sm font-semibold text-black">
                               {providerLabel}
                             </p>
                             {typeof result.firstIndex === "number" && result.firstIndex >= 0 && mentioned && result.rawText && (() => {
@@ -809,17 +809,21 @@ export default function Home() {
             <p className="mb-6 text-center text-base text-neutral-400">{statusMessage}</p>
           )}
 
-          {processedCount > 0 && !loading && (
+          {processedCount > 0 && !loading && (() => {
+            const successRate = (mentionCount / expectedProviders) * 100;
+            const isGoodPerformance = successRate >= 50;
+
+            return (
             <section className="w-full max-w-2xl mx-auto">
               {/* Enhanced Summary Card */}
               <div className="mb-8 relative group">
                 {/* Background gradient blob */}
-                <div className="absolute inset-0 bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/20 blur-3xl rounded-full transform scale-110 group-hover:scale-125 transition-transform duration-700"></div>
+                <div className={`absolute inset-0 bg-gradient-to-r ${isGoodPerformance ? 'from-amber-500/20 via-orange-500/20 to-amber-500/20' : 'from-red-500/20 via-rose-500/20 to-red-500/20'} blur-3xl rounded-full transform scale-110 group-hover:scale-125 transition-transform duration-700`}></div>
 
                 {/* Main Card */}
-                <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl border-2 border-amber-500/30 p-8 shadow-2xl backdrop-blur-sm group-hover:border-amber-500/50 transition-all duration-300">
+                <div className={`relative bg-black rounded-2xl border-2 ${isGoodPerformance ? 'border-amber-500/30' : 'border-red-500/30'} p-8 shadow-2xl backdrop-blur-sm ${isGoodPerformance ? 'group-hover:border-amber-500/50' : 'group-hover:border-red-500/50'} transition-all duration-300`}>
                   {/* Status Badge */}
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-gradient-to-r from-amber-600 to-orange-600 rounded-full shadow-lg">
+                  <div className={`absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-gradient-to-r ${isGoodPerformance ? 'from-amber-600 to-orange-600' : 'from-red-600 to-rose-600'} rounded-full shadow-lg`}>
                     <p className="text-xs font-bold text-white uppercase tracking-wider">
                       Analysis Complete
                     </p>
@@ -830,7 +834,7 @@ export default function Home() {
                     <div className="inline-flex items-center justify-center gap-3 mb-4">
                       {/* Success Icon */}
                       {mentionCount > 0 ? (
-                        <svg className="w-12 h-12 text-emerald-400 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className={`w-12 h-12 ${isGoodPerformance ? 'text-emerald-400' : 'text-red-400'} animate-pulse`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                       ) : (
@@ -841,7 +845,7 @@ export default function Home() {
 
                       {/* Large Score Display */}
                       <div>
-                        <p className="text-6xl font-black bg-gradient-to-r from-amber-400 via-orange-400 to-amber-400 bg-clip-text text-transparent leading-none">
+                        <p className={`text-6xl font-black bg-gradient-to-r ${isGoodPerformance ? 'from-amber-400 via-orange-400 to-amber-400' : 'from-red-400 via-rose-400 to-red-400'} bg-clip-text text-transparent leading-none`}>
                           {mentionCount}
                           <span className="text-4xl text-slate-500 font-normal">/{expectedProviders}</span>
                         </p>
@@ -877,14 +881,14 @@ export default function Home() {
                         <p className="text-2xl font-bold text-slate-400">{expectedProviders - mentionCount}</p>
                         <p className="text-xs text-slate-400 uppercase tracking-wide">Not Found</p>
                       </div>
-                      <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50 hover:border-amber-500/50 transition-colors">
-                        <p className="text-2xl font-bold text-amber-400">{Math.round((mentionCount / expectedProviders) * 100)}%</p>
+                      <div className={`bg-slate-800/50 rounded-lg p-3 border border-slate-700/50 ${isGoodPerformance ? 'hover:border-amber-500/50' : 'hover:border-red-500/50'} transition-colors`}>
+                        <p className={`text-2xl font-bold ${isGoodPerformance ? 'text-amber-400' : 'text-red-400'}`}>{Math.round((mentionCount / expectedProviders) * 100)}%</p>
                         <p className="text-xs text-slate-400 uppercase tracking-wide">Success Rate</p>
                       </div>
                     </div>
 
                     {/* Scroll hint */}
-                    <div className="mt-6 flex items-center justify-center gap-2 text-amber-400/70 animate-bounce">
+                    <div className={`mt-6 flex items-center justify-center gap-2 ${isGoodPerformance ? 'text-amber-400/70' : 'text-red-400/70'} animate-bounce`}>
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
@@ -911,7 +915,7 @@ export default function Home() {
                     isSuccess && mentioned
                       ? "bg-emerald-100 text-emerald-700"
                       : isSuccess
-                      ? "bg-slate-100 text-slate-600"
+                      ? "bg-red-100 text-red-700"
                       : "bg-yellow-100 text-yellow-700";
 
                   // Pre-compute values once for this result
@@ -934,7 +938,7 @@ export default function Home() {
                     >
                       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-semibold text-slate-900">
+                          <p className="text-sm font-semibold text-black">
                             {providerLabel}
                           </p>
                           {brandAnalysis && (
@@ -1069,7 +1073,7 @@ export default function Home() {
               {/* Email Section - appears after results */}
               {!loading && !emailSaved && (
                 <div className="mt-8 p-6 bg-white rounded-lg border border-slate-200">
-                  <h3 className="text-lg font-semibold text-slate-900 mb-3">Get Your Report via Email</h3>
+                  <h3 className="text-lg font-semibold text-black mb-3">Get Your Report via Email</h3>
                   <p className="text-sm text-slate-600 mb-4">
                     Enter your email to instantly receive a PDF report with detailed analysis
                   </p>
@@ -1107,7 +1111,8 @@ export default function Home() {
                 </div>
               )}
             </section>
-          )}
+            );
+          })()}
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import FAQ from "@/components/FAQ";
 
 type RunResult = {
   provider: string;
@@ -1115,6 +1116,9 @@ export default function Home() {
           })()}
         </div>
       </div>
+
+      {/* FAQ Section */}
+      <FAQ />
     </div>
   );
 }

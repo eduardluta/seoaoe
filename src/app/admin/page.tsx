@@ -7,6 +7,7 @@ import { ProviderCard } from "./ProviderCard";
 import { DownloadButton } from "./DownloadButton";
 import { LoginForm } from "./LoginForm";
 import { LogoutButton } from "./LogoutButton";
+import { AdminTabs } from "./AdminTabs";
 
 const PROVIDER_LABELS: Record<string, string> = {
   openai: "ChatGPT",
@@ -106,27 +107,25 @@ export default async function AdminPage() {
     },
   });
 
-  return (
-    <main className="min-h-screen px-4 py-6 max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-medium mb-1">Admin Dashboard</h1>
-          <p className="text-sm opacity-60">Recent visibility checks</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <Link
-            href="/"
-            className="text-sm opacity-60 hover:opacity-100 transition-opacity"
-          >
-            ← Back to Home
-          </Link>
-          <LogoutButton />
-        </div>
-      </div>
+  // get all bug reports (handle case where table doesn't exist yet)
+  let bugReports: Array<{
+    id: string;
+    name: string;
+    description: string;
+    createdAt: Date;
+  }> = [];
 
-      {/* Runs List */}
-      <div className="space-y-3">
+  try {
+    bugReports = await prisma.bugReport.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+  } catch (error) {
+    console.log("BugReport table not yet created. Run: npx prisma migrate dev --name add_bug_report_model");
+  }
+
+  // Runs content component
+  const runsContent = (
+    <div className="space-y-3">
         {runs.length === 0 && (
           <div className="bg-neutral-100 dark:bg-neutral-800 rounded-xl p-8 text-center">
             <p className="opacity-60">No runs yet. Create your first check from the home page.</p>
@@ -246,7 +245,71 @@ export default async function AdminPage() {
             </div>
           );
         })}
+    </div>
+  );
+
+  // Bug reports content component
+  const bugsContent = (
+    <div className="space-y-3">
+      {bugReports.length === 0 && (
+        <div className="bg-neutral-100 dark:bg-neutral-800 rounded-xl p-8 text-center">
+          <p className="opacity-60 mb-2">No bug reports yet.</p>
+          <p className="text-xs opacity-40">
+            If you just added this feature, run: <code className="bg-neutral-200 dark:bg-neutral-700 px-2 py-1 rounded">npx prisma migrate dev</code>
+          </p>
+        </div>
+      )}
+
+      {bugReports.map((bug) => (
+        <div
+          key={bug.id}
+          className="bg-neutral-100 dark:bg-neutral-800 rounded-2xl p-5 shadow-sm"
+        >
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex-1">
+              <h3 className="font-semibold text-lg mb-1">{bug.name}</h3>
+              <p className="text-sm text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap">
+                {bug.description}
+              </p>
+            </div>
+            <div className="text-right text-xs opacity-40 ml-4">
+              {new Date(bug.createdAt).toLocaleString()}
+            </div>
+          </div>
+          <div className="pt-3 border-t border-neutral-300 dark:border-neutral-700">
+            <code className="text-[11px] opacity-40 font-mono">ID: {bug.id}</code>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <main className="min-h-screen px-4 py-6 max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 text-white text-sm font-semibold transition hover:bg-amber-600"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Back to Website
+          </Link>
+          <div>
+            <h1 className="text-2xl font-medium mb-1">Admin Dashboard</h1>
+            <p className="text-sm opacity-60">Manage your visibility checks and bug reports</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <LogoutButton />
+        </div>
       </div>
+
+      {/* Tabs */}
+      <AdminTabs runsContent={runsContent} bugsContent={bugsContent} />
     </main>
   );
 }

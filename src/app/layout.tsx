@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
+import BugReportButton from "@/components/BugReportButton";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,8 +44,9 @@ export default function RootLayout({
           `}
         </Script>
         {children}
+        <BugReportButton />
         <footer className="w-full py-6 text-center text-sm text-gray-500">
-          made by <a href="https://mikgroup.com" target="_blank" rel="noopener noreferrer" className="hover:text-gray-700 transition-colors">mikgroup</a>
+          made by <a href="https://mikgroup.ch" target="_blank" rel="noopener noreferrer" className="hover:text-gray-700 transition-colors">mikgroup</a>
         </footer>
       </body>
     </html>

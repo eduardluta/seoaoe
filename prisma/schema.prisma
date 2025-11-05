@@ -65,3 +65,12 @@ model RunResult {
   @@index([provider])
   @@index([runId])
 }
+
+model BugReport {
+  id          String   @id
+  name        String
+  description String
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+}

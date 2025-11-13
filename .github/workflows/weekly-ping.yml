@@ -1,11 +1,9 @@
 name: Weekly Application Ping
 
-# Runs every Monday at 9:00 AM UTC
-# Can also be triggered manually from the Actions tab
+# Runs automatically every Monday at 9:00 AM UTC
 on:
   schedule:
     - cron: '0 9 * * 1'  # Weekly on Monday at 9:00 AM UTC
-  workflow_dispatch:  # Allows manual trigger
 
 jobs:
   ping:
@@ -16,41 +14,66 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Ping deployed application
-        env:
-          APP_URL: ${{ secrets.APP_URL || 'https://seoaoe.com' }}
         run: |
-          echo "Pinging application at: $APP_URL"
+          # Automatically try both potential deployment URLs
+          URLS=(
+            "https://seoaoe.vercel.app"
+            "https://seoaoe.com"
+          )
 
-          # Retry logic: try up to 3 times with 5 second delays
-          max_attempts=3
-          attempt=1
-          success=false
+          echo "🔄 Starting automatic ping check..."
+          overall_success=false
 
-          while [ $attempt -le $max_attempts ]; do
-            echo "Attempt $attempt of $max_attempts..."
+          for url in "${URLS[@]}"; do
+            echo ""
+            echo "📍 Checking: $url"
 
-            # Ping the application and capture HTTP status code
-            http_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "$APP_URL")
+            # Try up to 2 times per URL
+            max_attempts=2
+            attempt=1
+            success=false
 
-            if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 400 ]; then
-              echo "✅ Success! Application responded with HTTP $http_code"
-              success=true
-              break
-            else
-              echo "❌ Failed with HTTP $http_code"
+            while [ $attempt -le $max_attempts ]; do
+              echo "  Attempt $attempt of $max_attempts..."
 
-              if [ $attempt -lt $max_attempts ]; then
-                echo "Waiting 5 seconds before retry..."
-                sleep 5
+              # Ping the application and capture HTTP status code
+              http_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "$url")
+
+              if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 400 ]; then
+                echo "  ✅ Success! Application responded with HTTP $http_code"
+                success=true
+                overall_success=true
+                break
+              else
+                echo "  ❌ Failed with HTTP $http_code"
+
+                if [ $attempt -lt $max_attempts ]; then
+                  echo "  Waiting 3 seconds before retry..."
+                  sleep 3
+                fi
               fi
-            fi
 
-            attempt=$((attempt + 1))
+              attempt=$((attempt + 1))
+            done
+
+            # If we got a successful response, we're done
+            if [ "$success" = true ]; then
+              echo ""
+              echo "🎉 Application is alive and responding at: $url"
+              break
+            fi
           done
 
-          if [ "$success" = false ]; then
-            echo "::error::Application ping failed after $max_attempts attempts"
+          echo ""
+          if [ "$overall_success" = false ]; then
+            echo "::error::Application ping failed for all URLs"
+            echo "Tried URLs:"
+            for url in "${URLS[@]}"; do
+              echo "  - $url"
+            done
             exit 1
+          else
+            echo "✨ Ping completed successfully!"
           fi
 
       - name: Create issue on failure

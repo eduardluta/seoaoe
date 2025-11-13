@@ -1,0 +1,118 @@
+name: Weekly Application Ping
+
+# Runs automatically every Monday at 9:00 AM UTC
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Weekly on Monday at 9:00 AM UTC
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Ping deployed application
+        run: |
+          # Automatically try both potential deployment URLs
+          URLS=(
+            "https://seoaoe.vercel.app"
+            "https://seoaoe.com"
+          )
+
+          echo "🔄 Starting automatic ping check..."
+          overall_success=false
+
+          for url in "${URLS[@]}"; do
+            echo ""
+            echo "📍 Checking: $url"
+
+            # Try up to 2 times per URL
+            max_attempts=2
+            attempt=1
+            success=false
+
+            while [ $attempt -le $max_attempts ]; do
+              echo "  Attempt $attempt of $max_attempts..."
+
+              # Ping the application and capture HTTP status code
+              http_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "$url")
+
+              if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 400 ]; then
+                echo "  ✅ Success! Application responded with HTTP $http_code"
+                success=true
+                overall_success=true
+                break
+              else
+                echo "  ❌ Failed with HTTP $http_code"
+
+                if [ $attempt -lt $max_attempts ]; then
+                  echo "  Waiting 3 seconds before retry..."
+                  sleep 3
+                fi
+              fi
+
+              attempt=$((attempt + 1))
+            done
+
+            # If we got a successful response, we're done
+            if [ "$success" = true ]; then
+              echo ""
+              echo "🎉 Application is alive and responding at: $url"
+              break
+            fi
+          done
+
+          echo ""
+          if [ "$overall_success" = false ]; then
+            echo "::error::Application ping failed for all URLs"
+            echo "Tried URLs:"
+            for url in "${URLS[@]}"; do
+              echo "  - $url"
+            done
+            exit 1
+          else
+            echo "✨ Ping completed successfully!"
+          fi
+
+      - name: Create issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = '🚨 Weekly Ping Failed';
+            const body = `The weekly application ping failed on ${new Date().toISOString()}.
+
+            **Details:**
+            - Workflow: ${context.workflow}
+            - Run: ${context.runNumber}
+            - URL: [View Run](${context.payload.repository.html_url}/actions/runs/${context.runId})
+
+            Please check the application health and deployment status.`;
+
+            // Check if there's already an open issue
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'ping-failure'
+            });
+
+            if (issues.data.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['ping-failure', 'automated']
+              });
+            } else {
+              // Add a comment to the existing issue
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues.data[0].number,
+                body: `Another ping failure occurred on ${new Date().toISOString()}.\n\n[View Run](${context.payload.repository.html_url}/actions/runs/${context.runId})`
+              });
+            }

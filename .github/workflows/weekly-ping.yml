@@ -1,9 +1,10 @@
-name: Weekly Application Ping
+name: Bi-Weekly Application Ping
 
-# Runs automatically every Monday at 9:00 AM UTC
+# Runs automatically twice a week: Monday and Thursday at 9:00 AM UTC
 on:
   schedule:
-    - cron: '0 9 * * 1'  # Weekly on Monday at 9:00 AM UTC
+    - cron: '0 9 * * 1'  # Monday at 9:00 AM UTC
+    - cron: '0 9 * * 4'  # Thursday at 9:00 AM UTC
 
 jobs:
   ping:
@@ -13,12 +14,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Ping deployed application
+      - name: Ping deployed application and database
         run: |
-          # Automatically try both potential deployment URLs
+          # Ping the health endpoint to keep both Vercel and Supabase active
           URLS=(
-            "https://seoaoe.vercel.app"
-            "https://seoaoe.com"
+            "https://seoaoe.vercel.app/api/health"
+            "https://seoaoe.com/api/health"
           )
 
           echo "🔄 Starting automatic ping check..."
@@ -59,7 +60,7 @@ jobs:
             # If we got a successful response, we're done
             if [ "$success" = true ]; then
               echo ""
-              echo "🎉 Application is alive and responding at: $url"
+              echo "🎉 Application and database are alive and responding at: $url"
               break
             fi
           done

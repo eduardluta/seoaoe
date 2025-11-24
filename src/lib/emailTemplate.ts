@@ -121,35 +121,6 @@ export function generateEmailHTML(data: EmailTemplateData): string {
             </td>
           </tr>
 
-          <!-- Divider -->
-          <tr>
-            <td style="padding: 0 30px;">
-              <div style="height: 1px; background-color: #e5e7eb;"></div>
-            </td>
-          </tr>
-
-          <!-- CTA Section -->
-          <tr>
-            <td align="center" style="padding: 32px 30px; background-color: #f9fafb;">
-              <h3 style="margin: 0 0 8px 0; padding: 0; font-size: 18px; font-weight: 600; color: #111827;">Want to improve your AI visibility?</h3>
-              <p style="margin: 0 0 20px 0; padding: 0; font-size: 14px; color: #6b7280; line-height: 1.6;">Track changes over time and optimize your content for AI answer engines</p>
-              <table border="0" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td align="center" style="border-radius: 8px; background-color: #f59e0b;">
-                    <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://seoaoe.com'}" style="display: inline-block; padding: 14px 32px; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none;">Run Another Check →</a>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td align="center" style="padding: 32px 30px; background-color: #f9fafb; color: #6b7280;">
-              <p style="margin: 0; padding: 0; font-size: 16px; font-weight: 700; color: #111827;">SEO-AOE</p>
-            </td>
-          </tr>
-
         </table>
       </td>
     </tr>

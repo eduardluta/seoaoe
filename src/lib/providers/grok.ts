@@ -5,6 +5,15 @@ import type { ProviderRunResult } from "./registry";
 import { buildDomainRegex } from "../domainRegex";
 
 /**
+ * Creates a promise that rejects after the specified timeout
+ */
+function createTimeout(ms: number, message: string): Promise<never> {
+  return new Promise((_, reject) => {
+    setTimeout(() => reject(new Error(message)), ms);
+  });
+}
+
+/**
  * Check domain mention using Grok (xAI) API
  * Grok uses an OpenAI-compatible API
  */
@@ -28,6 +37,7 @@ Provide a comprehensive answer that includes relevant companies, websites, and s
 Question: What are the best options for "${keyword}"?`;
 
   const startTime = Date.now();
+  const STREAM_TIMEOUT = 45000; // 45 second timeout for the entire streaming operation
 
   const stream = await grok.chat.completions.create({
     model: "grok-3", // Current Grok model (grok-beta deprecated Sept 2025)
@@ -55,27 +65,35 @@ Question: What are the best options for "${keyword}"?`;
   let foundEarly = false;
   let earlyMatch: RegExpExecArray | null = null;
 
-  // Process stream and check for domain mention as tokens arrive
-  for await (const chunk of stream) {
-    const content = chunk.choices[0]?.delta?.content || "";
-    rawText += content;
+  // Process stream with timeout protection
+  const streamPromise = (async () => {
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content || "";
+      rawText += content;
 
-    // Check if we found the domain mention (early exit optimization)
-    if (!foundEarly && rawText.length > domain.length) {
-      const match = domainRegex.exec(rawText);
-      if (match) {
-        foundEarly = true;
-        earlyMatch = match;
+      // Check if we found the domain mention (early exit optimization)
+      if (!foundEarly && rawText.length > domain.length) {
+        const match = domainRegex.exec(rawText);
+        if (match) {
+          foundEarly = true;
+          earlyMatch = match;
+        }
+      }
+
+      // Extract usage info from final chunk
+      if (chunk.usage) {
+        tokensUsed = chunk.usage.total_tokens;
+        inputTokens = chunk.usage.prompt_tokens || 0;
+        outputTokens = chunk.usage.completion_tokens || 0;
       }
     }
+  })();
 
-    // Extract usage info from final chunk
-    if (chunk.usage) {
-      tokensUsed = chunk.usage.total_tokens;
-      inputTokens = chunk.usage.prompt_tokens || 0;
-      outputTokens = chunk.usage.completion_tokens || 0;
-    }
-  }
+  // Race the stream against a timeout
+  await Promise.race([
+    streamPromise,
+    createTimeout(STREAM_TIMEOUT, "Grok stream timed out after 45 seconds")
+  ]);
 
   const latencyMs = Date.now() - startTime;
 

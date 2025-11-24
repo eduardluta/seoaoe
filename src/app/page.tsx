@@ -857,8 +857,10 @@ export default function Home() {
                     <p className="text-lg font-semibold text-white mb-3">
                       {mentionCount === expectedProviders
                         ? "Perfect Score! All providers mentioned your domain"
-                        : mentionCount > expectedProviders / 2
+                        : mentionCount >= expectedProviders - 1
                         ? "Great visibility across AI providers"
+                        : mentionCount >= expectedProviders - 2
+                        ? "Good visibility across AI providers"
                         : mentionCount > 0
                         ? "Providers mentioned your domain"
                         : "No mentions found"}

@@ -45,9 +45,6 @@ export default function RootLayout({
         </Script>
         {children}
         <BugReportButton />
-        <footer className="w-full py-6 text-center text-sm text-gray-500">
-          made by <a href="https://mikgroup.ch" target="_blank" rel="noopener noreferrer" className="hover:text-gray-700 transition-colors">mikgroup</a>
-        </footer>
       </body>
     </html>
   );

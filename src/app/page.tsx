@@ -782,13 +782,16 @@ export default function Home() {
                               {providerLabel}
                             </p>
                             {typeof result.firstIndex === "number" && result.firstIndex >= 0 && mentioned && result.rawText && (() => {
-                              const brandRank = analyzeBrandPosition(result.rawText, result.firstIndex).ranking;
+                              const isGoogleOrganic = result.provider === "google_organic";
+                              const brandRank = isGoogleOrganic
+                                ? result.firstIndex
+                                : analyzeBrandPosition(result.rawText, result.firstIndex).ranking;
                               return (
                                 <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${getRankBadgeColor(brandRank)}`}>
                                   <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                   </svg>
-                                  {brandRank}{getOrdinalSuffix(brandRank)} brand
+                                  {isGoogleOrganic ? `#${brandRank}` : `${brandRank}${getOrdinalSuffix(brandRank)} brand`}
                                 </span>
                               );
                             })()}

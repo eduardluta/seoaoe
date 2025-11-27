@@ -293,6 +293,7 @@ function generateEmailHTML(data: EmailData): string {
       competitors: escapeHtml(competitors.join(', ')),
       snippet,
       errorMessage: error ? escapeHtml(error) : null,
+      fullResponse: answer ? escapeHtml(answer) : null,
     });
   }).join('\n');
 
@@ -415,7 +416,7 @@ export async function sendReportEmail(data: EmailData): Promise<void> {
     await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL as string,
       to: data.email,
-      subject: `seoaoe.com - AI SEO Ranking Report`,
+      subject: `${data.domain} - AI SEO Ranking Report`,
       text: generateEmailText(data),
       html: generateEmailHTML(data),
     });

@@ -140,8 +140,9 @@ export function generateProviderCard(data: {
   competitors: string;
   snippet: string | null;
   errorMessage: string | null;
+  fullResponse: string | null;
 }): string {
-  const { providerName, providerKey, statusBadgeColor, statusBadgeText, isMentioned, position, competitorCount, competitors, snippet, errorMessage } = data;
+  const { providerName, providerKey, statusBadgeColor, statusBadgeText, isMentioned, position, competitorCount, competitors, snippet, errorMessage, fullResponse } = data;
 
   // Google Organic uses ranking position (1-10), others use character position
   const isGoogleOrganic = providerKey === 'google_organic';
@@ -199,6 +200,23 @@ export function generateProviderCard(data: {
               <td style="padding: 12px; background-color: #f9fafb; border-radius: 6px; border-left: 3px solid ${isMentioned ? '#10b981' : '#e5e7eb'};">
                 <p style="margin: 0 0 4px 0; padding: 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #9ca3af;">CONTEXT</p>
                 <p style="margin: 0; padding: 0; font-size: 13px; color: #374151; line-height: 1.6; word-wrap: break-word;">${snippet}</p>
+              </td>
+            </tr>
+          </table>
+          ` : ''}
+
+          ${fullResponse ? `
+          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 12px;">
+            <tr>
+              <td>
+                <details style="cursor: pointer;">
+                  <summary style="padding: 10px 12px; background-color: #f3f4f6; border: 1px solid #d1d5db; border-radius: 6px; font-size: 12px; font-weight: 600; color: #374151; list-style: none; cursor: pointer; user-select: none;">
+                    ▶ View Full Response
+                  </summary>
+                  <div style="margin-top: 8px; padding: 12px; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; max-height: 400px; overflow-y: auto;">
+                    <p style="margin: 0; padding: 0; font-size: 12px; color: #1f2937; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;">${fullResponse}</p>
+                  </div>
+                </details>
               </td>
             </tr>
           </table>

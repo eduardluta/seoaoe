@@ -1081,7 +1081,7 @@ export default function Home() {
                 <div className="mt-8 p-6 bg-white rounded-lg border border-slate-200">
                   <h3 className="text-lg font-semibold text-black mb-3">Get Your Report via Email</h3>
                   <p className="text-sm text-slate-600 mb-4">
-                    Enter your email to instantly receive a PDF report with detailed analysis
+                    Enter your email to receive the detailed report
                   </p>
                   <form
                     onSubmit={(e) => {
@@ -1112,7 +1112,7 @@ export default function Home() {
               {emailSaved && (
                 <div className="mt-8 p-6 bg-green-50 rounded-lg text-center">
                   <p className="text-green-800 font-medium">
-                    ✓ Report sent! Check your inbox for the PDF report.
+                    ✓ Report sent! Check your inbox for the detailed report.
                   </p>
                 </div>
               )}

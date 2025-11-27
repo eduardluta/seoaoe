@@ -11,7 +11,7 @@ interface FAQItem {
 const faqs: FAQItem[] = [
   {
     question: "What is SEO-AOE?",
-    answer: "SEO-AOE tracks how your brand appears across AI answer engines like ChatGPT, Google AI Overview, Perplexity, Gemini, Claude, and Grok. It shows your AI visibility—a critical metric that traditional SEO tools miss."
+    answer: "SEO-AOE stands for Search Engine Optimization - Answers on Engine. It tracks how your brand appears across AI answer engines like ChatGPT, Google AI Overview, Perplexity, Gemini, Claude, and Grok. It shows your AI visibility—a critical metric that traditional SEO tools miss."
   },
   {
     question: "How does it work?",
@@ -204,18 +204,24 @@ export default function FAQ() {
         }
 
         .faq-answer {
-          transition: max-height 0.3s ease, opacity 0.3s ease;
-          overflow: hidden;
-        }
-
-        .faq-answer-closed {
-          max-height: 0;
+          display: grid;
+          grid-template-rows: 0fr;
+          transition: grid-template-rows 0.3s ease, opacity 0.3s ease;
           opacity: 0;
         }
 
+        .faq-answer > div {
+          overflow: hidden;
+        }
+
         .faq-answer-open {
-          max-height: 500px;
+          grid-template-rows: 1fr;
           opacity: 1;
+        }
+
+        .faq-answer-closed {
+          grid-template-rows: 0fr;
+          opacity: 0;
         }
       `}</style>
     </>
